@@ -51,16 +51,12 @@ fn variant_to_unary_pat(variant: &Variant) -> TokenStream2 {
 
     match &variant.fields {
         syn::Fields::Named(named) => {
-            let vars: Punctuated<Ident, Token![,]> =
-                named.named.iter().map(snake_case).collect();
+            let vars: Punctuated<Ident, Token![,]> = named.named.iter().map(snake_case).collect();
             quote!(#ident{#vars})
         }
         syn::Fields::Unnamed(unnamed) => {
-            let vars: Punctuated<Ident, Token![,]> = unnamed
-                .unnamed
-                .iter()
-                .map(snake_case)
-                .collect();
+            let vars: Punctuated<Ident, Token![,]> =
+                unnamed.unnamed.iter().map(snake_case).collect();
             quote!(#ident(#vars))
         }
         syn::Fields::Unit => quote!(#ident),
@@ -77,8 +73,7 @@ fn partial_eq_arm(variant: &Variant, child_ident: &Ident, parent_ident: &Ident) 
 
     match &variant.fields {
         syn::Fields::Named(named) => {
-            let vars1: Punctuated<Ident, Token![,]> =
-                named.named.iter().map(snake_case).collect();
+            let vars1: Punctuated<Ident, Token![,]> = named.named.iter().map(snake_case).collect();
             let vars2: Punctuated<Ident, Token![,]> =
                 vars1.iter().map(|v| format_ident!("{}2", v)).collect();
             let vars_rhs: Punctuated<TokenStream2, Token![&&]> = vars1
@@ -96,11 +91,8 @@ fn partial_eq_arm(variant: &Variant, child_ident: &Ident, parent_ident: &Ident) 
             quote!((#child_ident::#ident{#vars1}, #parent_ident::#ident{#vars2}) => #vars_rhs)
         }
         syn::Fields::Unnamed(unnamed) => {
-            let vars1: Punctuated<Ident, Token![,]> = unnamed
-                .unnamed
-                .iter()
-                .map(snake_case)
-                .collect();
+            let vars1: Punctuated<Ident, Token![,]> =
+                unnamed.unnamed.iter().map(snake_case).collect();
             let vars2: Punctuated<Ident, Token![,]> =
                 vars1.iter().map(|v| format_ident!("{}2", v)).collect();
             let vars_rhs: Punctuated<TokenStream2, Token![&&]> = vars1
@@ -305,10 +297,7 @@ pub fn subenum(_attr: TokenStream, tokens: TokenStream) -> TokenStream {
         }
     }
 
-    let enums: Vec<_> = enums
-        .into_values()
-        .map(|e| e.build(&input, data))
-        .collect();
+    let enums: Vec<_> = enums.into_values().map(|e| e.build(&input, data)).collect();
 
     sanitize_input(&mut input);
 
