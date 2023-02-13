@@ -1,0 +1,26 @@
+[package]
+name = "subenum"
+version = "0.1.0"
+edition = "2021"
+authors = [ "Paho Lurie-Gregg <paho@paholg.com>"]
+documentation = "https://docs.rs/subenum"
+repository = "https://github.com/paholg/subenum"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+description = """A proc-macro to create subsets of enums, that can be converted
+  to and from."""
+categories = ["development-tools::procedural-macro-helpers"]
+
+[lib]
+proc-macro = true
+name = "subenum"
+
+[dev-dependencies]
+strum = { version = "0.24.1", features = ["derive"] }
+trybuild = { version = "1.0.77", features = ["diff"] }
+
+[dependencies]
+quote = "1.0.23"
+syn = { version = "1.0.107", features = ["full", "extra-traits"] }
+proc-macro2 = "1.0.51"
+heck = "0.4.1"
