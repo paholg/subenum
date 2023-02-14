@@ -17,7 +17,6 @@ name = "subenum"
 
 [dev-dependencies]
 strum = { version = "0.24.1", features = ["derive"] }
-trybuild = { version = "1.0.77", features = ["diff"] }
 
 [dependencies]
 quote = "1.0.23"
