@@ -22,20 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Checkout
-      - uses: actions-rs/toolchain@v1
-        name: Install Rust Toolchain
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1
-        name: Cargo Test
-        with:
-          command: test
-      - uses: actions-rs/cargo@v1
-        name: Cargo Doc
-        with:
-          command: doc
+        name: Install Rust Toolchain
+      - run: cargo test
+      - run: cargo doc
 
   clippy:
     name: Lint
@@ -43,20 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Checkout
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         name: Install Rust Toolchain
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt, clippy
-      - uses: actions-rs/cargo@v1
-        name: Cargo Fmt
-        with:
-          command: fmt
-          args: --all -- --check
-      - uses: actions-rs/cargo@v1
-        name: Cargo Clippy
-        with:
-          command: clippy
-          args: -- -D warnings
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy -- -D warnings
