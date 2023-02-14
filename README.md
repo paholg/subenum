@@ -100,6 +100,9 @@ fn main() -> Result<(), TreeConvertError> {
     // Can't compare two subenums.
     // assert_ne!(tree2, edible);
 
+    // But we can do some conversion-trickery
+    assert_ne!(Plant::from(tree2), Plant::from(edible));
+
     Ok(())
 }
 ```
