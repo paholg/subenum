@@ -1,6 +1,6 @@
 [![crates.io](https://img.shields.io/crates/v/subenum.svg)](https://crates.io/crates/subenum)
 [![Build Status](https://github.com/paholg/subenum/actions/workflows/check.yml/badge.svg)](https://github.com/paholg/subenum/actions/workflows/check.yml)
-![docs.rs](https://img.shields.io/docsrs/subenum)
+[![docs.rs](https://img.shields.io/docsrs/subenum)](https://docs.rs/subenum)
 
 # subenum
 
