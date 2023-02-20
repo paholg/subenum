@@ -1,6 +1,6 @@
 use subenum::subenum;
 
-#[subenum]
+#[subenum(Bar)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Foo {
     #[subenum(Bar)]

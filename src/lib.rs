@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{
-    parse_macro_input, punctuated::Punctuated, Attribute, Data, DataEnum, DeriveInput, Field, Meta,
-    NestedMeta, Path, Token, Type, Variant,
+    parse_macro_input, punctuated::Punctuated, Attribute, AttributeArgs, Data, DataEnum,
+    DeriveInput, Field, Meta, NestedMeta, Path, Token, Type, Variant,
 };
 
 const SUBENUM: &str = "subenum";
@@ -262,12 +262,29 @@ fn attribute_paths(attr: &Attribute) -> impl Iterator<Item = Path> {
     })
 }
 
+fn build_enum_map(args: AttributeArgs, derives: &[Derive]) -> HashMap<Ident, Enum> {
+    let err = "subenum must be called with a list of identifiers, like `#[subenum(EnumA, EnumB)]`";
+    args.into_iter()
+        .map(|nested| match nested {
+            NestedMeta::Meta(meta) => meta,
+            NestedMeta::Lit(_) => panic!("{err}"),
+        })
+        .map(|meta| match meta {
+            Meta::Path(path) => path,
+            _ => panic!("{err}"),
+        })
+        .map(|path| path.get_ident().expect(err).to_owned())
+        .map(|ident| (ident.clone(), Enum::new(ident, derives.to_owned())))
+        .collect()
+}
+
 #[proc_macro_attribute]
-pub fn subenum(_attr: TokenStream, tokens: TokenStream) -> TokenStream {
+pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(args as AttributeArgs);
     let mut input = parse_macro_input!(tokens as DeriveInput);
     let data = match input.data {
         syn::Data::Enum(ref data) => data,
-        _ => panic!("SubEnum may only be used on enums."),
+        _ => panic!("subenum may only be used on enums."),
     };
 
     let mut derives = Vec::new();
@@ -280,8 +297,7 @@ pub fn subenum(_attr: TokenStream, tokens: TokenStream) -> TokenStream {
             }
         }
     }
-
-    let mut enums: HashMap<Ident, Enum> = HashMap::new();
+    let mut enums = build_enum_map(args, &derives);
 
     for variant in &data.variants {
         for attribute in &variant.attrs {
@@ -300,8 +316,8 @@ pub fn subenum(_attr: TokenStream, tokens: TokenStream) -> TokenStream {
                         .collect();
 
                     let e = enums
-                        .entry(ident.clone())
-                        .or_insert_with(|| Enum::new(ident.clone(), derives.clone()));
+                        .get_mut(ident)
+                        .expect("All enums to be created must be declared at the top-level subenum attribute");
                     e.variants.push(var);
                 }
             }

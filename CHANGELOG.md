@@ -4,6 +4,8 @@ This project follows semantic versioning.
 
 ### Unreleased
 - [fixed] Bug when repeating a type in an unnamed variant.
+- [changed] **BREAKING** All enums to be created must now be declared at the
+  top-level subenum attribute.
 
 ### 0.1.0 (2023-02-13)
 - [added] Initial `subenum` macro creation.
