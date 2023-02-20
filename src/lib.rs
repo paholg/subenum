@@ -45,7 +45,10 @@ fn snake_case(field: &Field) -> Ident {
 }
 
 // Map a variant from an enum definition to how it would be used in a match
-// E.g. Foo -> Foo, Foo(Bar, Baz) -> Foo(bar, baz), Foo { x: i32, y: i32 } -> Foo { x, y }
+// E.g.
+// * Foo -> Foo
+// * Foo(Bar, Baz) -> Foo(var1, var2)
+// * Foo { x: i32, y: i32 } -> Foo { x, y }
 fn variant_to_unary_pat(variant: &Variant) -> TokenStream2 {
     let ident = &variant.ident;
 
@@ -55,8 +58,12 @@ fn variant_to_unary_pat(variant: &Variant) -> TokenStream2 {
             quote!(#ident{#vars})
         }
         syn::Fields::Unnamed(unnamed) => {
-            let vars: Punctuated<Ident, Token![,]> =
-                unnamed.unnamed.iter().map(snake_case).collect();
+            let vars: Punctuated<Ident, Token![,]> = unnamed
+                .unnamed
+                .iter()
+                .enumerate()
+                .map(|(idx, _)| format_ident!("var{idx}"))
+                .collect();
             quote!(#ident(#vars))
         }
         syn::Fields::Unit => quote!(#ident),
@@ -75,7 +82,7 @@ fn partial_eq_arm(variant: &Variant, child_ident: &Ident, parent_ident: &Ident) 
         syn::Fields::Named(named) => {
             let vars1: Punctuated<Ident, Token![,]> = named.named.iter().map(snake_case).collect();
             let vars2: Punctuated<Ident, Token![,]> =
-                vars1.iter().map(|v| format_ident!("{}2", v)).collect();
+                vars1.iter().map(|v| format_ident!("{}_b", v)).collect();
             let vars_rhs: Punctuated<TokenStream2, Token![&&]> = vars1
                 .iter()
                 .zip(vars2.iter())
@@ -84,17 +91,21 @@ fn partial_eq_arm(variant: &Variant, child_ident: &Ident, parent_ident: &Ident) 
             let vars2: Punctuated<TokenStream2, Token![,]> = vars1
                 .iter()
                 .map(|v| {
-                    let v2 = format_ident!("{}2", v);
+                    let v2 = format_ident!("{}_b", v);
                     quote!(#v: #v2)
                 })
                 .collect();
             quote!((#child_ident::#ident{#vars1}, #parent_ident::#ident{#vars2}) => #vars_rhs)
         }
         syn::Fields::Unnamed(unnamed) => {
-            let vars1: Punctuated<Ident, Token![,]> =
-                unnamed.unnamed.iter().map(snake_case).collect();
+            let vars1: Punctuated<Ident, Token![,]> = unnamed
+                .unnamed
+                .iter()
+                .enumerate()
+                .map(|(idx, _)| format_ident!("var{idx}"))
+                .collect();
             let vars2: Punctuated<Ident, Token![,]> =
-                vars1.iter().map(|v| format_ident!("{}2", v)).collect();
+                vars1.iter().map(|v| format_ident!("{}_b", v)).collect();
             let vars_rhs: Punctuated<TokenStream2, Token![&&]> = vars1
                 .iter()
                 .zip(vars2.iter())
