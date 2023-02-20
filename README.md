@@ -16,7 +16,7 @@ I think the simplest way to explain it is with an example:
 ```rust
 use subenum::subenum;
 
-#[subenum]
+#[subenum(Edible)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Plant {
     #[subenum(Edible)]
@@ -58,7 +58,7 @@ pub enum AppleType {
     PinkLady,
 }
 
-#[subenum]
+#[subenum(Foo, Tree, Edible, Grass)]
 #[derive(Debug, Clone, Copy, PartialEq, strum::Display)]
 pub enum Plant {
     #[subenum(Foo)]
