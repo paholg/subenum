@@ -1,13 +1,14 @@
 #![doc = include_str!("../README.md")]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use heck::ToSnakeCase;
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{
     parse_macro_input, punctuated::Punctuated, Attribute, AttributeArgs, Data, DataEnum,
-    DeriveInput, Field, Meta, NestedMeta, Path, Token, Type, Variant,
+    DeriveInput, Field, GenericParam, Generics, Lifetime, Meta, NestedMeta, Path, Token,
+    TraitBound, TraitBoundModifier, Type, TypeParamBound, TypePath, Variant, WherePredicate,
 };
 
 const SUBENUM: &str = "subenum";
@@ -17,10 +18,118 @@ enum Derive {
     PartialEq,
 }
 
+impl Derive {
+    fn as_bound(&self) -> TypeParamBound {
+        match self {
+            Derive::PartialEq => TypeParamBound::Trait(TraitBound {
+                paren_token: None,
+                modifier: TraitBoundModifier::None,
+                lifetimes: None,
+                path: Path::from(Ident::new("PartialEq", Span::call_site())),
+            }),
+        }
+    }
+}
+
 struct Enum {
     ident: Ident,
     variants: Punctuated<Variant, Token![,]>,
     derives: Vec<Derive>,
+    generics: Generics,
+}
+
+/// A type or lifetime param, potentially used as a generic.
+/// E.g. the 'a in `'a: 'b + 'c` or the T in `T: U + V`.
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+enum Param {
+    Lifetime(Lifetime),
+    Type(Type),
+}
+
+impl From<Ident> for Param {
+    fn from(value: Ident) -> Self {
+        Param::Type(Type::Path(TypePath {
+            qself: None,
+            path: value.into(),
+        }))
+    }
+}
+
+impl From<Type> for Param {
+    fn from(value: Type) -> Self {
+        Param::Type(value)
+    }
+}
+
+impl From<Lifetime> for Param {
+    fn from(value: Lifetime) -> Self {
+        Param::Lifetime(value)
+    }
+}
+
+fn ty_as_ident(ty: &Type) -> Option<&Ident> {
+    if let Type::Path(p) = ty {
+        if p.qself.is_some() {
+            None
+        } else {
+            p.path.get_ident()
+        }
+    } else {
+        None
+    }
+}
+
+impl Param {
+    fn find(&self, generics: &Generics) -> (Option<GenericParam>, Option<WherePredicate>) {
+        match self {
+            Param::Lifetime(lt) => find_lt(lt, generics),
+            Param::Type(ty) => find_ty(ty, generics),
+        }
+    }
+}
+fn find_lt(lt: &Lifetime, generics: &Generics) -> (Option<GenericParam>, Option<WherePredicate>) {
+    let generic_param = generics
+        .params
+        .iter()
+        .find(|p| match p {
+            GenericParam::Lifetime(lt_def) => &lt_def.lifetime == lt,
+            _ => false,
+        })
+        .map(ToOwned::to_owned);
+
+    let predicate = generics
+        .where_clause
+        .iter()
+        .flat_map(|wh| wh.predicates.to_owned())
+        .find(|pred| match pred {
+            WherePredicate::Lifetime(pred_lt) => &pred_lt.lifetime == lt,
+            _ => false,
+        });
+
+    (generic_param, predicate)
+}
+fn find_ty(ty: &Type, generics: &Generics) -> (Option<GenericParam>, Option<WherePredicate>) {
+    let generic_param = generics
+        .params
+        .iter()
+        .find(|p| match p {
+            GenericParam::Type(ty_param) => {
+                matches!(ty_as_ident(ty), Some(t) if t == &ty_param.ident)
+            }
+            _ => false,
+        })
+        .map(ToOwned::to_owned);
+
+    let predicate = generics
+        .where_clause
+        .iter()
+        .flat_map(|wh| wh.predicates.to_owned())
+        .find(|pred| match pred {
+            WherePredicate::Type(pred_ty) => &pred_ty.bounded_ty == ty,
+            _ => false,
+        });
+
+    (generic_param, predicate)
 }
 
 impl Enum {
@@ -29,8 +138,188 @@ impl Enum {
             ident,
             variants: Punctuated::new(),
             derives,
+            generics: Generics {
+                lt_token: Some(syn::token::Lt::default()),
+                params: Punctuated::new(),
+                gt_token: Some(syn::token::Gt::default()),
+                where_clause: None,
+            },
         }
     }
+
+    fn compute_generics(&mut self, parent_generics: &Generics) {
+        let generic_bounds: HashMap<Param, Vec<TypeParamBound>> = parent_generics
+            .type_params()
+            .map(|param| {
+                (
+                    param.ident.to_owned().into(),
+                    param.bounds.iter().cloned().collect(),
+                )
+            })
+            .chain(parent_generics.lifetimes().map(|lifetime_def| {
+                (
+                    lifetime_def.lifetime.to_owned().into(),
+                    lifetime_def
+                        .bounds
+                        .iter()
+                        .cloned()
+                        .map(TypeParamBound::Lifetime)
+                        .collect(),
+                )
+            }))
+            .chain(
+                parent_generics
+                    .where_clause
+                    .iter()
+                    .flat_map(|clause| &clause.predicates)
+                    .map(|pred| match pred {
+                        syn::WherePredicate::Type(ty) => (
+                            ty.bounded_ty.to_owned().into(),
+                            ty.bounds.iter().cloned().collect(),
+                        ),
+
+                        syn::WherePredicate::Lifetime(lt) => (
+                            lt.lifetime.to_owned().into(),
+                            lt.bounds
+                                .iter()
+                                .cloned()
+                                .map(TypeParamBound::Lifetime)
+                                .collect(),
+                        ),
+                        syn::WherePredicate::Eq(_) => {
+                            panic!("Equality predicates in where clauses are unsupported")
+                        }
+                    }),
+            )
+            // TODO: Incorporate where clause
+            .collect();
+
+        // panic!("{generic_bounds:#?}");
+
+        let types: Vec<Type> = self
+            .variants
+            .iter()
+            .flat_map(|variant| match &variant.fields {
+                syn::Fields::Named(named) => named.named.iter().map(|field| &field.ty).collect(),
+                syn::Fields::Unnamed(unnamed) => {
+                    unnamed.unnamed.iter().map(|field| &field.ty).collect()
+                }
+                syn::Fields::Unit => Vec::new(),
+            })
+            .cloned()
+            .collect();
+        // panic!("types: {types:#?}");
+        // We have all the types we care about, but we still need to extract
+        // relevant lifetimes.
+        let lifetimes: Vec<Lifetime> = types.iter().flat_map(extract_lifetimes).collect();
+        let params = types
+            .into_iter()
+            .map(Param::Type)
+            .chain(lifetimes.into_iter().map(Param::Lifetime));
+
+        let relevant_params: HashSet<Param> = params
+            .flat_map(|generic| find_all_generics(&generic, &generic_bounds))
+            .collect();
+
+        self.generics = generics_subset(parent_generics, relevant_params.into_iter());
+    }
+}
+
+// Pull out any lifetimes from a type.
+fn extract_lifetimes(ty: &Type) -> Vec<Lifetime> {
+    match ty {
+        Type::Array(a) => extract_lifetimes(&a.elem),
+        Type::BareFn(_) => Vec::new(),
+        Type::Group(g) => extract_lifetimes(&g.elem),
+        Type::ImplTrait(it) => it
+            .bounds
+            .iter()
+            .filter_map(|b| match b {
+                TypeParamBound::Trait(_) => None,
+                TypeParamBound::Lifetime(lt) => Some(lt.to_owned()),
+            })
+            .collect(),
+        Type::Infer(_) => Vec::new(),
+        Type::Macro(_) => Vec::new(),
+        Type::Never(_) => Vec::new(),
+        Type::Paren(p) => extract_lifetimes(&p.elem),
+        Type::Path(_) => Vec::new(),
+        Type::Ptr(p) => extract_lifetimes(&p.elem),
+        Type::Reference(r) => r
+            .lifetime
+            .iter()
+            .cloned()
+            .chain(extract_lifetimes(&r.elem))
+            .collect(),
+        Type::Slice(s) => extract_lifetimes(&s.elem),
+        Type::TraitObject(to) => to
+            .bounds
+            .iter()
+            .filter_map(|b| match b {
+                TypeParamBound::Trait(_) => None,
+                TypeParamBound::Lifetime(lt) => Some(lt.to_owned()),
+            })
+            .collect(),
+
+        Type::Tuple(t) => t.elems.iter().flat_map(extract_lifetimes).collect(),
+        Type::Verbatim(_) => Vec::new(),
+        #[allow(unknown_lints)]
+        #[cfg_attr(test, deny(non_exhaustive_omitted_patterns))]
+        _ => Vec::new(),
+    }
+}
+
+/// Given a generic and a map of bounds, will find all generics that we need.
+/// Example:
+/// Given `T` and bounds `T: U, U: V, V: W + X, W, X, Y: Z, Z`
+/// Will return `T, U, V, W, X`.
+fn find_all_generics(param: &Param, bound_map: &HashMap<Param, Vec<TypeParamBound>>) -> Vec<Param> {
+    match bound_map.get(param) {
+        Some(bounds) => bounds
+            .iter()
+            .flat_map(|bound| match bound {
+                TypeParamBound::Trait(tr) => {
+                    // TODO: Handle BoundLifetimes (`for<'a, 'b, 'c>`)
+                    tr.path
+                        .get_ident()
+                        .into_iter()
+                        .flat_map(|ident| {
+                            let param = ident.to_owned().into();
+                            find_all_generics(&param, bound_map)
+                        })
+                        .collect()
+                }
+                TypeParamBound::Lifetime(lifetime) => {
+                    let param = lifetime.to_owned().into();
+                    find_all_generics(&param, bound_map)
+                }
+            })
+            .chain([param.to_owned()].into_iter())
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
+/// Given a set of `Generics`, return the subset that we're interested in.
+/// Expects `params` already includes all possible types/lifetimes we care
+// about.
+/// E.g. with generics `T: U, U, V`, this function should never be called with
+/// just params of `T`; it would instead expect `T, U`.
+/// That is, call `find_all_generics` first.
+fn generics_subset(generics: &Generics, params: impl Iterator<Item = Param>) -> Generics {
+    let mut new = Generics::default();
+
+    for param in params {
+        let (generic_param, predicate) = param.find(generics);
+        if let Some(gp) = generic_param {
+            new.params.push(gp);
+        }
+        if let Some(pred) = predicate {
+            new.make_where_clause().predicates.push(pred);
+        }
+    }
+
+    new
 }
 
 fn snake_case(field: &Field) -> Ident {
@@ -117,17 +406,33 @@ fn partial_eq_arm(variant: &Variant, child_ident: &Ident, parent_ident: &Ident) 
     }
 }
 
+// Add a bound to generics
+fn add_bound(generics: &mut Generics, bound: TypeParamBound) {
+    for param in generics.type_params_mut() {
+        if param.bounds.iter().all(|b| b != &bound) {
+            param.bounds.push(bound.clone());
+        }
+    }
+}
+
 impl Enum {
     fn build_inherited_derive<'a>(
         &self,
-        parent_ident: &Ident,
+        parent: &DeriveInput,
         derive: Derive,
         variants: impl IntoIterator<Item = &'a Variant>,
     ) -> TokenStream2 {
         let child_ident = &self.ident;
+        let parent_ident = &parent.ident;
+
+        let (_child_impl, child_ty, _child_where) = self.generics.split_for_impl();
 
         match derive {
             Derive::PartialEq => {
+                let mut generics = parent.generics.clone();
+                add_bound(&mut generics, derive.as_bound());
+                let (parent_impl, parent_ty, parent_where) = generics.split_for_impl();
+
                 let arms: Punctuated<TokenStream2, Token![,]> = variants
                     .into_iter()
                     .map(|variant| partial_eq_arm(variant, child_ident, parent_ident))
@@ -135,8 +440,8 @@ impl Enum {
 
                 quote!(
                     #[automatically_derived]
-                    impl PartialEq<#parent_ident> for #child_ident {
-                        fn eq(&self, other: &#parent_ident) -> bool {
+                    impl #parent_impl PartialEq<#parent_ident #parent_ty> for #child_ident #child_ty #parent_where {
+                        fn eq(&self, other: &#parent_ident #parent_ty) -> bool {
                             match (self, other) {
                                 #arms,
                                 _ => false,
@@ -146,8 +451,8 @@ impl Enum {
                     }
 
                     #[automatically_derived]
-                    impl PartialEq<#child_ident> for #parent_ident {
-                        fn eq(&self, other: &#child_ident) -> bool {
+                    impl #parent_impl PartialEq<#child_ident #child_ty> for #parent_ident #parent_ty #parent_where {
+                        fn eq(&self, other: &#child_ident #child_ty) -> bool {
                             match (other, self) {
                                 #arms,
                                 _ => false,
@@ -167,6 +472,7 @@ impl Enum {
         let mut child = parent.clone();
         child.ident = self.ident.clone();
         child.data = Data::Enum(child_data);
+        child.generics = self.generics.clone();
 
         let child_ident = &self.ident;
         let parent_ident = &parent.ident;
@@ -186,9 +492,13 @@ impl Enum {
         let inherited_derives = self
             .derives
             .iter()
-            .map(|&derive| self.build_inherited_derive(parent_ident, derive, &self.variants));
+            .map(|&derive| self.build_inherited_derive(parent, derive, &self.variants));
 
         let vis = &parent.vis;
+
+        let (_child_impl, child_ty, _child_where) = child.generics.split_for_impl();
+
+        let (parent_impl, parent_ty, parent_where) = parent.generics.split_for_impl();
 
         quote!(
             #child
@@ -207,8 +517,8 @@ impl Enum {
             impl std::error::Error for #error {}
 
             #[automatically_derived]
-            impl std::convert::From<#child_ident> for #parent_ident {
-                fn from(child: #child_ident) -> Self {
+            impl #parent_impl std::convert::From<#child_ident #child_ty> for #parent_ident #parent_ty #parent_where {
+                fn from(child: #child_ident #child_ty) -> Self {
                     match child {
                         #(#from_child_arms),*
                     }
@@ -216,10 +526,10 @@ impl Enum {
             }
 
             #[automatically_derived]
-            impl std::convert::TryFrom<#parent_ident> for #child_ident {
+            impl #parent_impl std::convert::TryFrom<#parent_ident #parent_ty> for #child_ident #child_ty #parent_where {
                 type Error = #error;
 
-                fn try_from(parent: #parent_ident) -> Result<Self, Self::Error> {
+                fn try_from(parent: #parent_ident #parent_ty) -> Result<Self, Self::Error> {
                     match parent {
                         #(#try_from_parent_arms),*,
                         _ => Err(#error)
@@ -322,6 +632,10 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
                 }
             }
         }
+    }
+
+    for e in enums.values_mut() {
+        e.compute_generics(&input.generics);
     }
 
     let enums: Vec<_> = enums.into_values().map(|e| e.build(&input, data)).collect();
