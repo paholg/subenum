@@ -60,16 +60,16 @@ pub enum AppleType {
 
 #[subenum(Foo, Tree, Edible, Grass)]
 #[derive(Debug, Clone, Copy, PartialEq, strum::Display)]
-pub enum Plant {
+pub enum Plant<'a, T> {
     #[subenum(Foo)]
     #[strum(serialize = "This is not a plant!")]
     Foo { x: i32, y: i32 },
     #[subenum(Tree, Edible)]
     Apple(AppleType),
     #[subenum(Grass)]
-    Bamboo,
+    Bamboo(&'a str),
     #[subenum(Edible)]
-    Basil,
+    Basil(T),
     #[subenum(Tree)]
     Fir,
     #[subenum(Tree)]
@@ -81,7 +81,7 @@ pub enum Plant {
 }
 
 fn main() -> Result<(), TreeConvertError> {
-    let plant = Plant::Apple(AppleType::CosmicCrisp);
+    let plant: Plant<'_, u32> = Plant::Apple(AppleType::CosmicCrisp);
     let tree = Tree::try_from(plant)?;
 
     assert_eq!(plant, tree);
@@ -92,7 +92,7 @@ fn main() -> Result<(), TreeConvertError> {
     let foo = Foo::Foo { x: 3, y: 4 };
     assert_eq!(foo.to_string(), "This is not a plant!");
 
-    let edible = Edible::Basil;
+    let edible = Edible::Basil(3);
     let plant = Plant::from(edible);
 
     assert_eq!(plant.to_string(), "Basil");
@@ -107,7 +107,7 @@ fn main() -> Result<(), TreeConvertError> {
 }
 ```
 
+# Limitations
 
-## Limitations
-
-Currently, generics are not supported. If desired, please open a ticket.
+Bound lifetimes (e.g. `for<'a, 'b, 'c>`) are not currently supported. Please
+open a ticket if these are desired.
