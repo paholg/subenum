@@ -3,6 +3,8 @@
 This project follows semantic versioning.
 
 ### Unreleased
+
+### 1.0.1 (2023-02-25)
 - [fixed] References to generic types.
 
 ### 1.0.0 (2023-02-20)
