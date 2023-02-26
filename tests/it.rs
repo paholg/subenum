@@ -64,3 +64,11 @@ enum Boo<'a> {
     #[subenum(Boop)]
     A(&'a str),
 }
+
+#[subenum(Phew)]
+enum Whew<'a: 'b, 'b, 'c, T, U> {
+    #[subenum(Phew)]
+    A(&'a T),
+    #[subenum(Phew)]
+    B(&'b [&'c [U; 7]]),
+}
