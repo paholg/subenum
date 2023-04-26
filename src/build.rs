@@ -140,16 +140,16 @@ impl Enum {
             #[derive(Copy, Clone, Debug)]
             #vis struct #error;
 
-            impl std::fmt::Display for #error {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    std::fmt::Debug::fmt(self, f)
+            impl core::fmt::Display for #error {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                    core::fmt::Debug::fmt(self, f)
                 }
             }
 
-            impl std::error::Error for #error {}
+            impl core::error::Error for #error {}
 
             #[automatically_derived]
-            impl #parent_impl std::convert::From<#child_ident #child_ty> for #parent_ident #parent_ty #parent_where {
+            impl #parent_impl core::convert::From<#child_ident #child_ty> for #parent_ident #parent_ty #parent_where {
                 fn from(child: #child_ident #child_ty) -> Self {
                     match child {
                         #(#from_child_arms),*
@@ -158,7 +158,7 @@ impl Enum {
             }
 
             #[automatically_derived]
-            impl #parent_impl std::convert::TryFrom<#parent_ident #parent_ty> for #child_ident #child_ty #parent_where {
+            impl #parent_impl core::convert::TryFrom<#parent_ident #parent_ty> for #child_ident #child_ty #parent_where {
                 type Error = #error;
 
                 fn try_from(parent: #parent_ident #parent_ty) -> Result<Self, Self::Error> {
