@@ -1,3 +1,5 @@
+use std::boxed::Box;
+
 pub trait BoxedIter {
     type Item;
     fn boxed(self) -> Box<dyn Iterator<Item = Self::Item>>;

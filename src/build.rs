@@ -1,3 +1,4 @@
+use std::vec::Vec;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
