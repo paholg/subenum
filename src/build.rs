@@ -111,6 +111,17 @@ impl Enum {
 
         let error = format_ident!("{child_ident}ConvertError");
 
+        #[cfg(not(feature = "error_trait"))]
+        let error_trait_impl = quote!();
+        #[cfg(all(feature = "error_trait", feature = "std"))]
+        let error_trait_impl = quote!(
+            impl std::error::Error for #error {}
+        );
+        #[cfg(all(feature = "error_trait", not(feature = "std")))]
+        let error_trait_impl = quote!(
+            impl core::error::Error for #error {}
+        );
+
         let pats: Vec<TokenStream2> = self.variants.iter().map(variant_to_unary_pat).collect();
 
         let from_child_arms = pats
@@ -146,7 +157,7 @@ impl Enum {
                 }
             }
 
-            impl core::error::Error for #error {}
+            #error_trait_impl
 
             #[automatically_derived]
             impl #parent_impl core::convert::From<#child_ident #child_ty> for #parent_ident #parent_ty #parent_where {
