@@ -26,5 +26,6 @@ proc-macro2 = "1.0.51"
 heck = "0.4.1"
 
 [features]
-default = ["std", "strum/std"]
+default = ["std", "error_trait", "strum/std"]
 std = []
+error_trait = []
