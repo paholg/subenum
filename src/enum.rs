@@ -1,5 +1,5 @@
-use std::vec::Vec;
 use std::collections::{BTreeMap, BTreeSet};
+use std::vec::Vec;
 
 use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Variant};
 

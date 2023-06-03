@@ -14,9 +14,9 @@ mod extractor;
 mod iter;
 mod param;
 
+use std::collections::BTreeMap;
 #[cfg(not(feature = "std"))]
 use std::{borrow::ToOwned, string::ToString, vec::Vec};
-use std::collections::BTreeMap;
 
 use derive::Derive;
 use heck::ToSnakeCase;

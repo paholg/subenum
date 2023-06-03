@@ -1,5 +1,5 @@
-use std::vec::Vec;
 use std::collections::BTreeMap;
+use std::vec::Vec;
 
 use syn::{GenericParam, Generics, Ident, Lifetime, TypeParamBound, WherePredicate};
 

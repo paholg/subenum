@@ -1,6 +1,6 @@
-use std::vec::Vec;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
+use std::vec::Vec;
 use syn::{
     punctuated::Punctuated, Data, DataEnum, DeriveInput, Generics, Ident, Token, TypeParamBound,
     Variant,

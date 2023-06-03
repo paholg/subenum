@@ -111,3 +111,10 @@ fn main() -> Result<(), TreeConvertError> {
 
 Bound lifetimes (e.g. `for<'a, 'b, 'c>`) are not currently supported. Please
 open a ticket if these are desired.
+
+# Features
+- `default` - `std` and `error_trait`
+- `std` - Use standard library collections and allocators within this proc macro
+- `error_trait` - Implement [`Error`](https://doc.rust-lang.org/std/error/trait.Error.html) for `ConvertError` types.
+  - When combined with nightly and [`#![feature(error_in_core)]`](https://github.com/rust-lang/rust/issues/103765) supports `#[no_std]`
+  - Otherwise, this feature requires `std` as well.
