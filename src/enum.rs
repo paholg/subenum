@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::vec::Vec;
+use std::collections::{BTreeMap, BTreeSet};
 
 use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Variant};
 
@@ -27,7 +28,7 @@ impl Enum {
     }
 
     pub fn compute_generics(&mut self, parent_generics: &Generics) {
-        let generic_bounds: HashMap<Param, Vec<TypeParamBound>> = parent_generics
+        let generic_bounds: BTreeMap<Param, Vec<TypeParamBound>> = parent_generics
             .type_params()
             .map(|param| {
                 (
@@ -95,8 +96,8 @@ impl Enum {
         // Extract all of the lifetimes and idents we care about from the types.
         let params = types.into_iter().flat_map(|ty| ty.extract_params());
 
-        // The same generic may appear in multiple bounds, so we use a HashSet to dedup.
-        let relevant_params: HashSet<Param> = params
+        // The same generic may appear in multiple bounds, so we use a BTreeSet to dedup.
+        let relevant_params: BTreeSet<Param> = params
             .flat_map(|param| param.find_relevant(&generic_bounds))
             .collect();
 

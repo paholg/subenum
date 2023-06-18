@@ -3,7 +3,7 @@ use syn::{Ident, Path, TraitBound, TraitBoundModifier, TypeParamBound};
 
 pub mod partial_eq;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Ord, PartialOrd, PartialEq, Eq)]
 pub enum Derive {
     PartialEq,
 }

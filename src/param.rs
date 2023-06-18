@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::vec::Vec;
+use std::collections::BTreeMap;
 
 use syn::{GenericParam, Generics, Ident, Lifetime, TypeParamBound, WherePredicate};
 
@@ -6,7 +7,7 @@ use crate::extractor::Extractor;
 
 /// A type or lifetime param, potentially used as a generic.
 /// E.g. the 'a in `'a: 'b + 'c` or the T in `T: U + V`.
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Param {
     Lifetime(Lifetime),
     Ident(Ident),
@@ -42,7 +43,7 @@ impl Param {
     /// Example:
     /// Given `T` and bounds `T: U, U: V, V: W + X, W, X, Y: Z, Z`
     /// Will return `T, U, V, W, X`.
-    pub fn find_relevant(&self, bound_map: &HashMap<Param, Vec<TypeParamBound>>) -> Vec<Param> {
+    pub fn find_relevant(&self, bound_map: &BTreeMap<Param, Vec<TypeParamBound>>) -> Vec<Param> {
         match bound_map.get(self) {
             Some(bounds) => bounds
                 .iter()

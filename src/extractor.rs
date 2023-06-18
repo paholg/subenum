@@ -1,3 +1,6 @@
+use std::borrow::ToOwned;
+use std::boxed::Box;
+use std::vec::Vec;
 use syn::{Ident, Lifetime, Type, TypeParamBound};
 
 use crate::{iter::BoxedIter, param::Param};
