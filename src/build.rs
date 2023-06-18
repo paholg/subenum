@@ -148,6 +148,7 @@ impl Enum {
 
             #(#inherited_derives)*
 
+            #[allow(missing_doc)]
             #[derive(Copy, Clone, Debug)]
             #vis struct #error;
 
