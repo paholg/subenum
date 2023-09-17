@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::vec::Vec;
 
+use proc_macro2::TokenStream;
 use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Variant};
 
 use crate::{extractor::Extractor, iter::BoxedIter, param::Param, Derive};
@@ -8,15 +9,19 @@ use crate::{extractor::Extractor, iter::BoxedIter, param::Param, Derive};
 pub struct Enum {
     pub ident: Ident,
     pub variants: Punctuated<Variant, Token![,]>,
+    pub variants_attributes: Vec<Vec<TokenStream>>,
+    pub attributes: Vec<TokenStream>,
     pub derives: Vec<Derive>,
     pub generics: Generics,
 }
 
 impl Enum {
-    pub fn new(ident: Ident, derives: Vec<Derive>) -> Self {
+    pub fn new(ident: Ident, attributes: Vec<TokenStream>, derives: Vec<Derive>) -> Self {
         Enum {
             ident,
             variants: Punctuated::new(),
+            variants_attributes: Vec::new(),
+            attributes,
             derives,
             generics: Generics {
                 lt_token: Some(syn::token::Lt::default()),

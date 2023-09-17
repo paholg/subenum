@@ -97,14 +97,16 @@ impl Enum {
         }
     }
 
-    pub fn build(&self, parent: &DeriveInput, parent_data: &DataEnum) -> TokenStream2 {
-        let mut child_data = parent_data.clone();
-        child_data.variants = self.variants.clone();
-
-        let mut child = parent.clone();
-        child.ident = self.ident.clone();
-        child.data = Data::Enum(child_data);
-        child.generics = self.generics.clone();
+    pub fn build(&self, parent: &DeriveInput) -> TokenStream2 {
+        let attributes = self.attributes.clone();
+        let child_attrs = parent.attrs.clone();
+        let variants = self
+            .variants
+            .iter()
+            .zip(self.variants_attributes.clone())
+            .map(|(variant, attribute)| quote! { #(#attribute)* #variant })
+            .collect::<Vec<TokenStream2>>();
+        let child_generics = self.generics.clone();
 
         let child_ident = &self.ident;
         let parent_ident = &parent.ident;
@@ -139,12 +141,16 @@ impl Enum {
 
         let vis = &parent.vis;
 
-        let (_child_impl, child_ty, _child_where) = child.generics.split_for_impl();
+        let (_child_impl, child_ty, _child_where) = child_generics.split_for_impl();
 
         let (parent_impl, parent_ty, parent_where) = parent.generics.split_for_impl();
 
         quote!(
-            #child
+            #(#[ #attributes ])*
+            #(#child_attrs)*
+            #vis enum #child_ident #child_generics {
+                #(#variants),*
+            }
 
             #(#inherited_derives)*
 

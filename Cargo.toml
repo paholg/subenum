@@ -17,6 +17,7 @@ proc-macro = true
 name = "subenum"
 
 [dev-dependencies]
+derive_more = "0.99.17"
 strum = { version = "0.24.1", features = ["derive"], default-features = false }
 
 [dependencies]
