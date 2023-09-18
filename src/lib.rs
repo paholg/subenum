@@ -7,16 +7,18 @@ mod extractor;
 mod iter;
 mod param;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use derive::Derive;
 use heck::ToSnakeCase;
+use itertools::Itertools;
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
 use r#enum::Enum;
 use syn::{
-    parse_macro_input, Attribute, AttributeArgs, DeriveInput, Field, Meta, NestedMeta, Path, Type,
+    parse_macro_input, Attribute, AttributeArgs, DeriveInput, Field, Meta, MetaList, MetaNameValue,
+    NestedMeta, Type, Variant, Path
 };
 
 const SUBENUM: &str = "subenum";
@@ -126,6 +128,109 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
         }
     }
 
+    let mut sibling_conversions = Vec::new();
+    for (sibling1, sibling2) in enums.values().cloned().tuple_combinations() {
+        let sibling1_variants_hash_set: HashSet<Variant> = sibling1.variants.into_iter().collect();
+        let sibling2_variants_hash_set: HashSet<Variant> = sibling2.variants.into_iter().collect();
+
+        let intersection = sibling1_variants_hash_set.intersection(&sibling2_variants_hash_set).collect::<Vec<&Variant>>();
+        if intersection.is_empty() {
+            continue;
+        }
+
+        let (parent_impl, _, parent_where) = input.generics.split_for_impl();
+
+        let sibling1_ident = sibling1.ident;
+        let (_, sibling1_ty, _) = sibling1.generics.split_for_impl();
+
+        let sibling2_ident = sibling2.ident;
+        let (_, sibling2_ty, _) = sibling2.generics.split_for_impl();
+
+        let pats: Vec<proc_macro2::TokenStream> = intersection.iter().map(|variant| build::variant_to_unary_pat(*variant)).collect();
+
+        let sibling1_to_sibling2 = if sibling1_variants_hash_set.len() == intersection.len() {
+            let from_sibling1_arms = pats
+                .iter()
+                .map(|pat| quote!(#sibling1_ident::#pat => #sibling2_ident::#pat));
+
+            quote! {
+                #[automatically_derived]
+                impl #parent_impl std::convert::From<#sibling1_ident #sibling1_ty> for #sibling2_ident #sibling2_ty #parent_where {
+                    fn from(sibling: #sibling1_ident #sibling1_ty) -> Self {
+                        match sibling {
+                            #(#from_sibling1_arms),*
+                        }
+                    }
+                }
+            }
+        } else {
+            let try_from_sibling1_arms = pats
+                .iter()
+                .map(|pat| quote!(#sibling1_ident::#pat => Ok(#sibling2_ident::#pat)));
+
+            let error = quote::format_ident!("{sibling2_ident}ConvertError");
+
+            quote! {
+                #[automatically_derived]
+                impl #parent_impl std::convert::TryFrom<#sibling1_ident #sibling1_ty> for #sibling2_ident #sibling2_ty #parent_where {
+                    type Error = #error;
+
+                    fn try_from(sibling: #sibling1_ident #sibling1_ty) -> Result<Self, Self::Error> {
+                        match sibling {
+                            #(#try_from_sibling1_arms),*,
+                            _ => Err(#error)
+                        }
+                    }
+                }
+            }
+        };
+
+        let sibling2_to_sibling1 = if sibling2_variants_hash_set.len() == intersection.len() {
+            let from_sibling2_arms = pats
+                .iter()
+                .map(|pat| quote!(#sibling2_ident::#pat => #sibling1_ident::#pat));
+
+            quote! {
+                #[automatically_derived]
+                impl #parent_impl std::convert::From<#sibling2_ident #sibling2_ty> for #sibling1_ident #sibling1_ty #parent_where {
+                    fn from(sibling: #sibling2_ident #sibling2_ty) -> Self {
+                        match sibling {
+                            #(#from_sibling2_arms),*
+                        }
+                    }
+                }
+            }
+        } else {
+            let try_from_sibling2_arms = pats
+                .iter()
+                .map(|pat| quote!(#sibling2_ident::#pat => Ok(#sibling1_ident::#pat)));
+
+            let error = quote::format_ident!("{sibling1_ident}ConvertError");
+
+            quote! {
+                #[automatically_derived]
+                impl #parent_impl std::convert::TryFrom<#sibling2_ident #sibling2_ty> for #sibling1_ident #sibling1_ty #parent_where {
+                    type Error = #error;
+
+                    fn try_from(sibling: #sibling2_ident #sibling2_ty) -> Result<Self, Self::Error> {
+                        match sibling {
+                            #(#try_from_sibling2_arms),*,
+                            _ => Err(#error)
+                        }
+                    }
+                }
+            }
+        };
+
+        sibling_conversions.push(
+            quote!{
+                #sibling1_to_sibling2
+
+                #sibling2_to_sibling1
+            }
+        );
+    }
+
     for e in enums.values_mut() {
         e.compute_generics(&input.generics);
     }
@@ -138,6 +243,8 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
         #input
 
         #(#enums)*
+
+        #(#sibling_conversions)*
     )
     .into()
 }

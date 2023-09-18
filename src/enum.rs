@@ -4,6 +4,7 @@ use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Varian
 
 use crate::{extractor::Extractor, iter::BoxedIter, param::Param, Derive};
 
+#[derive(Clone)]
 pub struct Enum {
     pub ident: Ident,
     pub variants: Punctuated<Variant, Token![,]>,
