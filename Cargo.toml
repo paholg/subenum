@@ -24,3 +24,4 @@ quote = "1.0.23"
 syn = { version = "1.0.107", features = ["full", "extra-traits"] }
 proc-macro2 = "1.0.51"
 heck = "0.4.1"
+itertools = "0.11.0"

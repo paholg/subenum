@@ -25,7 +25,7 @@ fn add_bound(generics: &mut Generics, bound: TypeParamBound) {
 // * Foo -> Foo
 // * Foo(Bar, Baz) -> Foo(var1, var2)
 // * Foo { x: i32, y: i32 } -> Foo { x, y }
-fn variant_to_unary_pat(variant: &Variant) -> TokenStream2 {
+pub(crate) fn variant_to_unary_pat(variant: &Variant) -> TokenStream2 {
     let ident = &variant.ident;
 
     match &variant.fields {
