@@ -18,7 +18,7 @@ use quote::quote;
 use r#enum::Enum;
 use syn::{
     parse_macro_input, Attribute, AttributeArgs, DeriveInput, Field, Meta, MetaList, MetaNameValue,
-    NestedMeta, Type, Variant, Path
+    NestedMeta, Type, Variant, Path, punctuated::Punctuated,
 };
 
 const SUBENUM: &str = "subenum";
@@ -128,6 +128,10 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
         }
     }
 
+    for e in enums.values_mut() {
+        e.compute_generics(&input.generics);
+    }
+
     let mut sibling_conversions = Vec::new();
     for (sibling1, sibling2) in enums.values().cloned().tuple_combinations() {
         let sibling1_variants_hash_set: HashSet<Variant> = sibling1.variants.into_iter().collect();
@@ -138,13 +142,31 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
             continue;
         }
 
-        let (parent_impl, _, parent_where) = input.generics.split_for_impl();
-
         let sibling1_ident = sibling1.ident;
         let (_, sibling1_ty, _) = sibling1.generics.split_for_impl();
 
         let sibling2_ident = sibling2.ident;
         let (_, sibling2_ty, _) = sibling2.generics.split_for_impl();
+
+        let mut combined_generics = sibling1.generics.params.clone().into_iter().collect::<HashSet<syn::GenericParam>>();
+        combined_generics.extend(sibling2.generics.params.clone().into_iter().collect::<HashSet<syn::GenericParam>>());
+
+        let combined_generics = syn::Generics {
+            lt_token: Some(syn::token::Lt::default()),
+            params: Punctuated::from_iter(combined_generics.into_iter()),
+            gt_token: Some(syn::token::Gt::default()),
+            where_clause: None,
+        };
+
+        let mut combined_where = sibling1.generics.where_clause.clone()
+        .map(|where_clause| where_clause.predicates.into_iter().collect::<HashSet<syn::WherePredicate>>()).unwrap_or_default();
+        combined_where.extend(sibling2.generics.where_clause.clone()
+        .map(|where_clause| where_clause.predicates.into_iter().collect::<HashSet<syn::WherePredicate>>()).unwrap_or_default());
+
+        let combined_where = Some(syn::WhereClause {
+            where_token: syn::token::Where::default(),
+            predicates: Punctuated::from_iter(combined_where.into_iter())
+        });
 
         let pats: Vec<proc_macro2::TokenStream> = intersection.iter().map(|variant| build::variant_to_unary_pat(*variant)).collect();
 
@@ -155,7 +177,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #parent_impl std::convert::From<#sibling1_ident #sibling1_ty> for #sibling2_ident #sibling2_ty #parent_where {
+                impl #combined_generics std::convert::From<#sibling1_ident #sibling1_ty> for #sibling2_ident #sibling2_ty #combined_where {
                     fn from(sibling: #sibling1_ident #sibling1_ty) -> Self {
                         match sibling {
                             #(#from_sibling1_arms),*
@@ -172,7 +194,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #parent_impl std::convert::TryFrom<#sibling1_ident #sibling1_ty> for #sibling2_ident #sibling2_ty #parent_where {
+                impl #combined_generics std::convert::TryFrom<#sibling1_ident #sibling1_ty> for #sibling2_ident #sibling2_ty #combined_where {
                     type Error = #error;
 
                     fn try_from(sibling: #sibling1_ident #sibling1_ty) -> Result<Self, Self::Error> {
@@ -192,7 +214,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #parent_impl std::convert::From<#sibling2_ident #sibling2_ty> for #sibling1_ident #sibling1_ty #parent_where {
+                impl #combined_generics std::convert::From<#sibling2_ident #sibling2_ty> for #sibling1_ident #sibling1_ty #combined_where {
                     fn from(sibling: #sibling2_ident #sibling2_ty) -> Self {
                         match sibling {
                             #(#from_sibling2_arms),*
@@ -209,7 +231,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #parent_impl std::convert::TryFrom<#sibling2_ident #sibling2_ty> for #sibling1_ident #sibling1_ty #parent_where {
+                impl #combined_generics std::convert::TryFrom<#sibling2_ident #sibling2_ty> for #sibling1_ident #sibling1_ty #combined_where {
                     type Error = #error;
 
                     fn try_from(sibling: #sibling2_ident #sibling2_ty) -> Result<Self, Self::Error> {
@@ -231,9 +253,6 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
         );
     }
 
-    for e in enums.values_mut() {
-        e.compute_generics(&input.generics);
-    }
 
     let enums: Vec<_> = enums.into_values().map(|e| e.build(&input, data)).collect();
 
