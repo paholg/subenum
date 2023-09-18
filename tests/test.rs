@@ -34,9 +34,8 @@ fn test_token() {
 
 #[subenum(EnumB)]
 enum EnumA<T> {
-    A,
     #[subenum(EnumB)]
     B,
     #[subenum(EnumB)]
-    C(T)
+    C(T),
 }
