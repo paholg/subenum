@@ -16,6 +16,9 @@ keywords = ["enum", "sub-enum", "no-std"]
 proc-macro = true
 name = "subenum"
 
+[[example]]
+name = "require_docs"
+
 [dev-dependencies]
 derive_more = "0.99.17"
 strum = { version = "0.24.1", features = ["derive"], default-features = false }

@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use std::vec::Vec;
+use std::{format, vec::Vec};
 use syn::{punctuated::Punctuated, DeriveInput, Generics, Ident, Token, TypeParamBound, Variant};
 
 use crate::{
@@ -142,6 +142,10 @@ impl Enum {
 
         let (parent_impl, parent_ty, parent_where) = parent.generics.split_for_impl();
 
+        let error_doc = format!(
+            "An error type used for converting from [`{parent_ident}`] to [`{child_ident}`]."
+        );
+
         quote!(
             #(#[ #attributes ])*
             #(#child_attrs)*
@@ -151,6 +155,7 @@ impl Enum {
 
             #(#inherited_derives)*
 
+            #[doc = #error_doc]
             #[derive(Copy, Clone, Debug)]
             #vis struct #error;
 
