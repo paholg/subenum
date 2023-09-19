@@ -3,6 +3,7 @@
 This project follows semantic versioning.
 
 ### Unreleased
+- [fixed] Support for `#![deny(missing_docs)]`.
 
 ### 1.1.0 (2023-09-18)
 - [added] Default feature `std` and support for no-std.
