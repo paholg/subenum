@@ -1,10 +1,7 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use std::vec::Vec;
-use syn::{
-    punctuated::Punctuated, Data, DataEnum, DeriveInput, Generics, Ident, Token, TypeParamBound,
-    Variant,
-};
+use syn::{punctuated::Punctuated, DeriveInput, Generics, Ident, Token, TypeParamBound, Variant};
 
 use crate::{
     derive::{partial_eq::partial_eq_arm, Derive},

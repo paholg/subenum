@@ -46,7 +46,8 @@ fn main() -> Result<(), EdibleConvertError> {
 
 ## Complex Example
 
-In addition to simple enums and built-in traits, `subenum` works with complex enums and third-party attributes.
+In addition to simple enums and built-in traits, `subenum` works with complex
+enums and third-party attributes.
 
 ```rust
 use subenum::subenum;
@@ -107,6 +108,33 @@ fn main() -> Result<(), TreeConvertError> {
 }
 ```
 
+## Subenum-specific proc-macros
+
+Maybe you have an enum that can't be `Copy`d, but the subenum can, and you want
+to derive it:
+
+```rust
+use subenum::subenum;
+
+#[subenum(Bar, Qux(derive(Copy)))]
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Foo {
+    #[subenum(Bar)]
+    A(String),
+    #[subenum(Qux)]
+    B,
+    #[subenum(Bar, Qux)]
+    C(u8),
+}
+
+fn main() {
+    let b = Qux::B;
+    let c = b;
+    assert_eq!(b, c);
+}
+```
+
+
 # Limitations
 
 Bound lifetimes (e.g. `for<'a, 'b, 'c>`) are not currently supported. Please
@@ -115,6 +143,10 @@ open a ticket if these are desired.
 # Features
 - `default` - `std` and `error_trait`
 - `std` - Use standard library collections and allocators within this proc macro
-- `error_trait` - Implement [`Error`](https://doc.rust-lang.org/std/error/trait.Error.html) for `ConvertError` types.
-  - When combined with nightly and [`#![feature(error_in_core)]`](https://github.com/rust-lang/rust/issues/103765) supports `#[no_std]`
+- `error_trait` - Implement
+  [`Error`](https://doc.rust-lang.org/std/error/trait.Error.html) for
+  `ConvertError` types.
+  - When combined with nightly and
+    [`#![feature(error_in_core)]`](https://github.com/rust-lang/rust/issues/103765)
+    supports `#[no_std]`
   - Otherwise, this feature requires `std` as well.
