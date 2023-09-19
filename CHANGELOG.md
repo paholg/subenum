@@ -3,6 +3,8 @@
 This project follows semantic versioning.
 
 ### Unreleased
+
+### 1.1.1 (2023-09-18)
 - [fixed] Support for `#![deny(missing_docs)]`.
 
 ### 1.1.0 (2023-09-18)
