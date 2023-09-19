@@ -1,5 +1,6 @@
 use subenum::subenum;
 
+// Test tuple variants, struct variants, and repeated types.
 #[subenum(Bar)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Foo {
@@ -14,6 +15,7 @@ enum Foo {
     },
 }
 
+// Test lifetimes, generics, as well as unused lifetimes/generics.
 #[subenum(Both, Str, Tee, Neither)]
 #[derive(Clone, Debug)]
 enum Pippy<'a, T> {
@@ -31,6 +33,7 @@ enum Pippy<'a, T> {
     F { a: u32 },
 }
 
+// Test where clause
 #[subenum(Flip, Flop)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Flippy<T, U>
@@ -43,6 +46,7 @@ where
     B(U),
 }
 
+// Test conversion.
 #[subenum(Floop)]
 #[derive(Clone, Debug, PartialEq)]
 enum Snoo<T> {
@@ -65,10 +69,20 @@ enum Boo<'a> {
     A(&'a str),
 }
 
-#[subenum(Phew)]
-enum Whew<'a: 'b, 'b, 'c, T, U> {
-    #[subenum(Phew)]
+// Test lifetime relationships.
+#[subenum(Dop, Mop)]
+enum Dip<'a: 'b, 'b, 'c, T, U> {
+    #[subenum(Dop, Mop)]
     A(&'a T),
-    #[subenum(Phew)]
+    #[subenum(Dop)]
     B(&'b [&'c [U; 7]]),
+}
+
+// Test generic consts.
+#[subenum(Phew)]
+enum Whew<const N: usize> {
+    #[subenum(Phew)]
+    A,
+    #[subenum(Phew)]
+    B([u8; N]),
 }
