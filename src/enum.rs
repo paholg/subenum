@@ -37,7 +37,7 @@ impl Enum {
             .type_params()
             .map(|param| {
                 (
-                    Param::Ident(param.ident.clone()),
+                    Param::Type(param.ident.clone()),
                     param.bounds.iter().cloned().collect(),
                 )
             })
@@ -64,9 +64,9 @@ impl Enum {
                             // We need to treat this as a bound on both `T` and on `U`.
                             let bounds: Vec<TypeParamBound> = ty.bounds.iter().cloned().collect();
                             ty.bounded_ty
-                                .extract_idents()
+                                .extract_types()
                                 .into_iter()
-                                .map(move |ident| (Param::Ident(ident), bounds.clone()))
+                                .map(move |ident| (Param::Type(ident), bounds.clone()))
                                 .boxed()
                         }
                         syn::WherePredicate::Lifetime(lt) => [(

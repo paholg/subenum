@@ -7,12 +7,14 @@ use crate::{iter::BoxedIter, param::Param};
 
 pub trait Extractor {
     fn extract_lifetimes(&self) -> Vec<Lifetime>;
-    fn extract_idents(&self) -> Vec<Ident>;
+    fn extract_types(&self) -> Vec<Ident>;
+    fn extract_consts(&self) -> Vec<Ident>;
     fn extract_params(&self) -> Box<dyn Iterator<Item = Param>> {
         self.extract_lifetimes()
             .into_iter()
             .map(Param::Lifetime)
-            .chain(self.extract_idents().into_iter().map(Param::Ident))
+            .chain(self.extract_types().into_iter().map(Param::Type))
+            .chain(self.extract_consts().into_iter().map(Param::Const))
             .boxed()
     }
 }
@@ -63,11 +65,11 @@ impl Extractor for Type {
         }
     }
 
-    fn extract_idents(&self) -> Vec<Ident> {
+    fn extract_types(&self) -> Vec<Ident> {
         match self {
-            Type::Array(a) => a.elem.extract_idents(),
+            Type::Array(a) => a.elem.extract_types(),
             Type::BareFn(_) => Vec::new(),
-            Type::Group(g) => g.elem.extract_idents(),
+            Type::Group(g) => g.elem.extract_types(),
             Type::ImplTrait(it) => it
                 .bounds
                 .iter()
@@ -80,18 +82,54 @@ impl Extractor for Type {
             Type::Infer(_) => Vec::new(),
             Type::Macro(_) => Vec::new(),
             Type::Never(_) => Vec::new(),
-            Type::Paren(p) => p.elem.extract_idents(),
+            Type::Paren(p) => p.elem.extract_types(),
             Type::Path(p) => p
                 .path
                 .get_ident()
                 .map(ToOwned::to_owned)
                 .into_iter()
                 .collect(),
-            Type::Ptr(p) => p.elem.extract_idents(),
-            Type::Reference(r) => r.elem.extract_idents(),
-            Type::Slice(s) => s.elem.extract_idents(),
+            Type::Ptr(p) => p.elem.extract_types(),
+            Type::Reference(r) => r.elem.extract_types(),
+            Type::Slice(s) => s.elem.extract_types(),
             Type::TraitObject(_) => Vec::new(),
-            Type::Tuple(t) => t.elems.iter().flat_map(Self::extract_idents).collect(),
+            Type::Tuple(t) => t.elems.iter().flat_map(Self::extract_types).collect(),
+            Type::Verbatim(_) => Vec::new(),
+            #[allow(unknown_lints)]
+            #[cfg_attr(test, deny(non_exhaustive_omitted_patterns))]
+            _ => Vec::new(),
+        }
+    }
+
+    fn extract_consts(&self) -> Vec<Ident> {
+        match self {
+            Type::Array(a) => a.elem.extract_consts(),
+            Type::BareFn(_) => Vec::new(),
+            Type::Group(g) => g.elem.extract_consts(),
+            Type::ImplTrait(it) => it
+                .bounds
+                .iter()
+                .cloned()
+                .filter_map(|b| match b {
+                    TypeParamBound::Trait(t) => t.path.get_ident().map(ToOwned::to_owned),
+                    TypeParamBound::Lifetime(_) => None,
+                })
+                .collect(),
+            Type::Infer(_) => Vec::new(),
+            Type::Macro(_) => Vec::new(),
+            Type::Never(_) => Vec::new(),
+            Type::Paren(p) => p.elem.extract_consts(),
+            Type::Path(p) => p
+                .path
+                .get_ident()
+                .map(ToOwned::to_owned)
+                .into_iter()
+                .collect(),
+            Type::Ptr(p) => p.elem.extract_consts(),
+            Type::Reference(r) => r.elem.extract_consts(),
+            Type::Slice(s) => s.elem.extract_consts(),
+            Type::TraitObject(_) => Vec::new(),
+            Type::Tuple(t) => t.elems.iter().flat_map(Self::extract_consts).collect(),
             Type::Verbatim(_) => Vec::new(),
             #[allow(unknown_lints)]
             #[cfg_attr(test, deny(non_exhaustive_omitted_patterns))]

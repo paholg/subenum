@@ -10,19 +10,8 @@ use crate::extractor::Extractor;
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Param {
     Lifetime(Lifetime),
-    Ident(Ident),
-}
-
-impl From<Ident> for Param {
-    fn from(value: Ident) -> Self {
-        Param::Ident(value)
-    }
-}
-
-impl From<Lifetime> for Param {
-    fn from(value: Lifetime) -> Self {
-        Param::Lifetime(value)
-    }
+    Type(Ident),
+    Const(Ident),
 }
 
 impl Param {
@@ -34,7 +23,8 @@ impl Param {
     ) -> (Option<&'b GenericParam>, Option<&'b WherePredicate>) {
         match self {
             Param::Lifetime(lt) => find_lt(lt, generics),
-            Param::Ident(ty) => find_ident(ty, generics),
+            Param::Type(ty) => find_ident(ty, generics),
+            Param::Const(c) => find_const(c, generics),
         }
     }
 
@@ -54,11 +44,11 @@ impl Param {
                             .get_ident()
                             .into_iter()
                             .cloned()
-                            .flat_map(|ident| Param::from(ident).find_relevant(bound_map))
+                            .flat_map(|ident| Param::Type(ident).find_relevant(bound_map))
                             .collect()
                     }
                     TypeParamBound::Lifetime(lifetime) => {
-                        Param::from(lifetime.clone()).find_relevant(bound_map)
+                        Param::Lifetime(lifetime.clone()).find_relevant(bound_map)
                     }
                 })
                 .chain([self.clone()])
@@ -67,6 +57,7 @@ impl Param {
         }
     }
 }
+
 fn find_lt<'a>(
     lt: &Lifetime,
     generics: &'a Generics,
@@ -104,11 +95,23 @@ fn find_ident<'a>(
         .find(|pred| match pred {
             WherePredicate::Type(pred_ty) => pred_ty
                 .bounded_ty
-                .extract_idents()
+                .extract_types()
                 .iter()
                 .any(|id| id == ident),
             _ => false,
         });
 
     (generic_param, predicate)
+}
+
+fn find_const<'a>(
+    con: &Ident,
+    generics: &'a Generics,
+) -> (Option<&'a GenericParam>, Option<&'a WherePredicate>) {
+    let generic_param = generics.params.iter().find(|p| match p {
+        GenericParam::Const(const_param) => &const_param.ident == con,
+        _ => false,
+    });
+
+    (generic_param, None)
 }
