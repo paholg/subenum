@@ -60,7 +60,7 @@ impl Param {
                         Param::from(lifetime.clone()).find_relevant(bound_map)
                     }
                 })
-                .chain([self.clone()].into_iter())
+                .chain([self.clone()])
                 .collect(),
             None => Vec::new(),
         }
