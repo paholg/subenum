@@ -4,6 +4,7 @@ This project follows semantic versioning.
 
 ### Unreleased
 - [added] Default feature `std` and support for no-std.
+- [added] Support for subenum-specific proc-macros.
 
 ### 1.0.1 (2023-02-25)
 - [fixed] References to generic types.
