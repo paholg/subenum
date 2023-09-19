@@ -3,6 +3,8 @@
 This project follows semantic versioning.
 
 ### Unreleased
+
+### 1.1.0 (2023-09-18)
 - [added] Default feature `std` and support for no-std.
 - [added] Support for subenum-specific proc-macros.
 
