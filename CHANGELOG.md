@@ -3,6 +3,7 @@
 This project follows semantic versioning.
 
 ### Unreleased
+- [added] Default feature `std` and support for no-std.
 
 ### 1.0.1 (2023-02-25)
 - [fixed] References to generic types.

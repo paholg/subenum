@@ -1,4 +1,11 @@
 #![doc = include_str!("../README.md")]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(feature = "std")]
+extern crate std;
+
+#[cfg(not(feature = "std"))]
+extern crate alloc as std;
 
 mod build;
 mod derive;
@@ -7,7 +14,9 @@ mod extractor;
 mod iter;
 mod param;
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
+use std::{borrow::ToOwned, string::ToString, vec::Vec};
 
 use derive::Derive;
 use heck::ToSnakeCase;
@@ -64,7 +73,7 @@ fn attribute_paths(attr: &Attribute) -> impl Iterator<Item = Path> {
     })
 }
 
-fn build_enum_map(args: AttributeArgs, derives: &[Derive]) -> HashMap<Ident, Enum> {
+fn build_enum_map(args: AttributeArgs, derives: &[Derive]) -> BTreeMap<Ident, Enum> {
     let err = "subenum must be called with a list of identifiers, like `#[subenum(EnumA, EnumB)]`";
     args.into_iter()
         .map(|nested| match nested {
