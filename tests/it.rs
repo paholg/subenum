@@ -72,3 +72,18 @@ enum Whew<'a: 'b, 'b, 'c, T, U> {
     #[subenum(Phew)]
     B(&'b [&'c [U; 7]]),
 }
+
+#[subenum(SubEnumWithErrorVariant)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum EnumWithErrorVariant {
+    #[subenum(SubEnumWithErrorVariant)]
+    Error,
+}
+
+#[test]
+fn test_enum_with_error_variant() {
+    let a = EnumWithErrorVariant::Error;
+    let b = SubEnumWithErrorVariant::try_from(a).unwrap();
+
+    assert_eq!(a, b);
+}
