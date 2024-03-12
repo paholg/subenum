@@ -36,7 +36,7 @@ jobs:
           - ""
           - "--no-default-features"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -49,7 +49,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout
       - uses: dtolnay/rust-toolchain@stable
         name: Install Rust Toolchain
