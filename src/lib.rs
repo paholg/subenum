@@ -1,11 +1,7 @@
 #![doc = include_str!("../README.md")]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 
-#[cfg(feature = "std")]
-extern crate std;
-
-#[cfg(not(feature = "std"))]
-extern crate alloc as std;
+extern crate alloc;
 
 mod build;
 mod derive;
@@ -14,9 +10,7 @@ mod extractor;
 mod iter;
 mod param;
 
-use std::collections::BTreeMap;
-#[cfg(not(feature = "std"))]
-use std::{borrow::ToOwned, string::ToString, vec::Vec};
+use alloc::{borrow::ToOwned, collections::BTreeMap, string::ToString, vec::Vec};
 
 use derive::Derive;
 use heck::ToSnakeCase;
@@ -170,12 +164,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
                     };
 
                     // We want all attributes except the "subenum" one.
-                    var.attrs = var
-                        .attrs
-                        .iter()
-                        .cloned()
-                        .filter(|attr| attribute != attr)
-                        .collect();
+                    var.attrs.retain(|attr| attribute != attr);
 
                     let e = enums
                         .get_mut(ident)

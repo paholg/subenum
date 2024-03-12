@@ -1,4 +1,4 @@
-use std::boxed::Box;
+use alloc::boxed::Box;
 
 pub trait BoxedIter {
     type Item;
