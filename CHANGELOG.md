@@ -4,6 +4,9 @@ This project follows semantic versioning.
 
 ### Unreleased
 
+### 1.1.2 (2024-03-12)
+- [fixed] Fix error when there's an enum variant called `Error`.
+
 ### 1.1.1 (2023-09-18)
 - [fixed] Support for `#![deny(missing_docs)]`.
 
