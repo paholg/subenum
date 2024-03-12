@@ -180,7 +180,7 @@ impl Enum {
             impl #parent_impl core::convert::TryFrom<#parent_ident #parent_ty> for #child_ident #child_ty #parent_where {
                 type Error = #error;
 
-                fn try_from(parent: #parent_ident #parent_ty) -> Result<Self, Self::Error> {
+                fn try_from(parent: #parent_ident #parent_ty) -> Result<Self, <Self as core::convert::TryFrom<#parent_ident #parent_ty>>::Error> {
                     match parent {
                         #(#try_from_parent_arms),*,
                         _ => Err(#error)
