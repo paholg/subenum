@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::vec::Vec;
-
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    vec::Vec,
+};
 use proc_macro2::TokenStream;
 use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Variant};
 

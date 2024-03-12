@@ -1,6 +1,6 @@
+use alloc::{format, vec::Vec};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use std::{format, vec::Vec};
 use syn::{punctuated::Punctuated, DeriveInput, Generics, Ident, Token, TypeParamBound, Variant};
 
 use crate::{

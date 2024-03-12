@@ -1,6 +1,4 @@
-use std::collections::BTreeMap;
-use std::vec::Vec;
-
+use alloc::{collections::BTreeMap, vec::Vec};
 use syn::{GenericParam, Generics, Ident, Lifetime, TypeParamBound, WherePredicate};
 
 use crate::extractor::Extractor;
