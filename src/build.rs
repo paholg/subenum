@@ -136,7 +136,7 @@ impl Enum {
             .iter()
             .map(|&derive| self.build_inherited_derive(parent, derive, &self.variants));
 
-        let vis = &parent.vis;
+        let vis = self.visibility.as_ref().unwrap_or(&parent.vis);
 
         let (_child_impl, child_ty, _child_where) = child_generics.split_for_impl();
 

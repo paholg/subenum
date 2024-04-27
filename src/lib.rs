@@ -19,8 +19,8 @@ use proc_macro2::Ident;
 use quote::quote;
 use r#enum::Enum;
 use syn::{
-    parse_macro_input, Attribute, AttributeArgs, DeriveInput, Field, Meta, MetaList, MetaNameValue,
-    NestedMeta, Type,
+    parse_macro_input, Attribute, AttributeArgs, DeriveInput, Field, Lit, Meta, MetaList,
+    MetaNameValue, NestedMeta, Type,
 };
 
 const SUBENUM: &str = "subenum";
@@ -77,28 +77,54 @@ fn build_enum_map(args: AttributeArgs, derives: &[Derive]) -> BTreeMap<Ident, En
             NestedMeta::Lit(_) => panic!("{}", ERR),
         })
         .map(|meta| match meta {
-            Meta::Path(path) => (path.get_ident().expect(ERR).to_owned(), Vec::new()),
-            Meta::List(MetaList { path, nested, .. }) => (
-                path.get_ident().expect(ERR).to_owned(),
-                nested
+            Meta::Path(path) => (path.get_ident().expect(ERR).to_owned(), Vec::new(), None),
+            Meta::List(MetaList { path, nested, .. }) => {
+                let mut vis = None;
+                let attrs = nested
                     .into_iter()
                     .map(|nested| match nested {
                         NestedMeta::Meta(meta) => meta,
                         NestedMeta::Lit(_) => panic!("{}", ERR),
                     })
-                    .map(|meta| match meta {
-                        Meta::Path(path) => quote! { #path },
-                        Meta::List(MetaList { path, nested, .. }) => quote! { #path(#nested) },
-                        Meta::NameValue(MetaNameValue { path, lit, .. }) => quote! { #path = #lit },
+                    .filter_map(|meta| match meta {
+                        Meta::Path(path) => Some(quote! { #path }),
+                        Meta::List(MetaList { path, nested, .. }) => {
+                            Some(quote! { #path(#nested) })
+                        }
+                        Meta::NameValue(MetaNameValue { path, lit, .. }) => {
+                            if path.is_ident("vis") {
+                                if vis.is_some() {
+                                    panic!("subenum has conflicting visibility qualifiers");
+                                }
+                                let string = match lit {
+                                    Lit::Str(lit_str) => lit_str,
+                                    _ => panic!(r#"subenum visibility must be passed as a string, e.g. `#[subenum(EnumA, EnumB(vis = "pub")]`"#),
+                                };
+                                let new_vis = string
+                                    .parse()
+                                    .unwrap_or_else(|_| panic!(
+                                        "subenum vis is not a valid visibility qualifier",
+                                    ));
+                                vis = Some(new_vis);
+                                None
+                            } else {
+                                Some(quote! { #path = #lit })
+                            }
+                        }
                     })
-                    .collect::<Vec<proc_macro2::TokenStream>>(),
-            ),
+                    .collect::<Vec<proc_macro2::TokenStream>>();
+                (
+                    path.get_ident().expect(ERR).to_owned(),
+                    attrs,
+                    vis,
+                )
+            },
             _ => panic!("{}", ERR),
         })
-        .map(|(ident, attrs)| {
+        .map(|(ident, attrs, vis)| {
             (
                 ident.clone(),
-                Enum::new(ident.clone(), attrs, derives.to_owned()),
+                Enum::new(ident.clone(), vis, attrs, derives.to_owned()),
             )
         })
         .collect()

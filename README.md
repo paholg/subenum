@@ -134,6 +134,40 @@ fn main() {
 }
 ```
 
+## Subenum visibility
+
+By default, a subenum has the same visibility as its parent enum. Use `vis` to
+override this.
+
+```rust
+use subenum::subenum;
+
+#[subenum(Bar(vis = "pub"))]
+pub(crate) enum Foo {
+    #[subenum(Bar)]
+    A(String),
+    B,
+    #[subenum(Bar)]
+    C(u8),
+}
+```
+
+The visibility qualifier for "private" is empty, so use `vis = ""` to make a
+subenum private.
+
+```rust
+use subenum::subenum;
+
+#[subenum(Bar(vis = ""))]
+pub enum Foo {
+    #[subenum(Bar)]
+    A(String),
+    B,
+    #[subenum(Bar)]
+    C(u8),
+}
+```
+
 
 # Limitations
 

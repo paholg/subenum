@@ -3,7 +3,7 @@ use alloc::{
     vec::Vec,
 };
 use proc_macro2::TokenStream;
-use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Variant};
+use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Variant, Visibility};
 
 use crate::{extractor::Extractor, iter::BoxedIter, param::Param, Derive};
 
@@ -14,10 +14,16 @@ pub struct Enum {
     pub attributes: Vec<TokenStream>,
     pub derives: Vec<Derive>,
     pub generics: Generics,
+    pub visibility: Option<Visibility>,
 }
 
 impl Enum {
-    pub fn new(ident: Ident, attributes: Vec<TokenStream>, derives: Vec<Derive>) -> Self {
+    pub fn new(
+        ident: Ident,
+        visibility: Option<Visibility>,
+        attributes: Vec<TokenStream>,
+        derives: Vec<Derive>,
+    ) -> Self {
         Enum {
             ident,
             variants: Punctuated::new(),
@@ -30,6 +36,7 @@ impl Enum {
                 gt_token: Some(syn::token::Gt::default()),
                 where_clause: None,
             },
+            visibility,
         }
     }
 
