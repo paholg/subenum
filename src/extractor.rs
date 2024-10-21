@@ -34,7 +34,31 @@ impl Extractor for Type {
             Type::Macro(_) => Vec::new(),
             Type::Never(_) => Vec::new(),
             Type::Paren(p) => p.elem.extract_lifetimes(),
-            Type::Path(_) => Vec::new(),
+            Type::Path(p) => p
+                .path
+                .segments
+                .iter()
+                .flat_map(|x| match x.arguments {
+                    syn::PathArguments::AngleBracketed(ref ab) => {
+                        ab.args.iter().flat_map(|arg| match arg {
+                            syn::GenericArgument::Lifetime(lt) => Vec::from([lt.clone()]),
+                            syn::GenericArgument::Type(ty) => ty
+                                .extract_lifetimes(),
+                            syn::GenericArgument::Binding(b) => b
+                                .ty
+                                .extract_lifetimes(),
+                            _=> Vec::new(),
+                        })
+                        .collect()
+                    }
+                    syn::PathArguments::Parenthesized(ref p) => p
+                        .inputs
+                        .iter()
+                        .flat_map(|x| x.extract_lifetimes())
+                        .collect(),
+                    syn::PathArguments::None => Vec::new()
+                })
+                .collect(),
             Type::Ptr(p) => p.elem.extract_lifetimes(),
             Type::Reference(r) => r
                 .lifetime
