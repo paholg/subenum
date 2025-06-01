@@ -1,6 +1,6 @@
+#![allow(clippy::needless_doctest_main)]
 #![doc = include_str!("../README.md")]
 #![no_std]
-
 extern crate alloc;
 
 mod build;
