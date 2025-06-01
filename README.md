@@ -150,3 +150,14 @@ open a ticket if these are desired.
     [`#![feature(error_in_core)]`](https://github.com/rust-lang/rust/issues/103765)
     supports `#[no_std]`
   - Otherwise, this feature requires `std` as well.
+
+# License
+
+Licensed under either of
+
+ * Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
+   <http://www.apache.org/licenses/LICENSE-2.0>)
+ * MIT license
+   ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+
+at your option.
