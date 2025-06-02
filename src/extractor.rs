@@ -28,6 +28,7 @@ impl Extractor for Type {
                 .filter_map(|b| match b {
                     TypeParamBound::Trait(_) => None,
                     TypeParamBound::Lifetime(lt) => Some(lt),
+                    _ => panic!("Unsupported Type Parameter Bound"),
                 })
                 .collect(),
             Type::Infer(_) => Vec::new(),
@@ -50,6 +51,7 @@ impl Extractor for Type {
                 .filter_map(|b| match b {
                     TypeParamBound::Trait(_) => None,
                     TypeParamBound::Lifetime(lt) => Some(lt),
+                    _ => panic!("Unsupported Type Parameter Bound"),
                 })
                 .collect(),
 
@@ -73,6 +75,7 @@ impl Extractor for Type {
                 .filter_map(|b| match b {
                     TypeParamBound::Trait(t) => t.path.get_ident().map(ToOwned::to_owned),
                     TypeParamBound::Lifetime(_) => None,
+                    _ => panic!("Unsupported Type Parameter Bound"),
                 })
                 .collect(),
             Type::Infer(_) => Vec::new(),
