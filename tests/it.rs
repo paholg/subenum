@@ -73,6 +73,24 @@ enum Whew<'a: 'b, 'b, 'c, T, U> {
     B(&'b [&'c [U; 7]]),
 }
 
+#[test]
+fn excersice() {
+    let _ = Bar::B {
+        x: 1,
+        y: 2,
+        z: "yes".into(),
+        w: "no".into(),
+    };
+
+    let _ = Pippy::A("hello", 7);
+
+    let _ = Flip::A(8);
+
+    let _ = Boop::A("beep");
+
+    let _: Whew<'_, '_, '_, i32, u8> = Whew::A(&7);
+}
+
 #[subenum(SubEnumWithErrorVariant)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum EnumWithErrorVariant {

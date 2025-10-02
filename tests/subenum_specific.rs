@@ -7,9 +7,9 @@ use subenum::subenum;
 )]
 #[derive(Clone, Debug, PartialEq)]
 enum Token {
-    #[subenum(Binary(display(fmt = "-")), Unary)]
+    #[subenum(Binary(display("-")), Unary)]
     Minus,
-    #[subenum(Binary(display(fmt = "+")))]
+    #[subenum(Binary(display("+")))]
     Plus,
     #[subenum(Keyword)]
     And,
@@ -23,7 +23,7 @@ enum Token {
 fn test_token() {
     let a = Token::Minus;
     let b = Binary::try_from(a.clone()).unwrap();
-    println!("b: {}", b);
+    println!("b: {b}");
 
     let c = "and".parse::<Keyword>().unwrap();
     let d = Token::from(c);
@@ -38,4 +38,10 @@ enum EnumA<T> {
     B,
     #[subenum(EnumB)]
     C(T),
+}
+
+#[test]
+fn test_enuma() {
+    let _a: EnumA<u8> = EnumA::B;
+    let _b = EnumB::C(7);
 }
