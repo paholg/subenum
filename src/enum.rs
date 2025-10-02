@@ -80,9 +80,7 @@ impl Enum {
                         )]
                         .into_iter()
                         .boxed(),
-                        syn::WherePredicate::Eq(_) => {
-                            panic!("Equality predicates in where clauses are unsupported")
-                        }
+                        _ => panic!("Unsupported where predicate"),
                     }),
             )
             .collect();

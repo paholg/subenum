@@ -58,6 +58,7 @@ impl Param {
                     TypeParamBound::Lifetime(lifetime) => {
                         Param::from(lifetime.clone()).find_relevant(bound_map)
                     }
+                    _ => panic!("Unsupported Type Parameter Bound"),
                 })
                 .chain([self.clone()])
                 .collect(),

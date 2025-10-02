@@ -18,10 +18,8 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
 use r#enum::Enum;
-use syn::{
-    parse_macro_input, Attribute, AttributeArgs, DeriveInput, Field, Meta, MetaList, MetaNameValue,
-    NestedMeta, Type,
-};
+use syn::punctuated::Punctuated;
+use syn::{parse_macro_input, DeriveInput, Field, Meta, MetaList, MetaNameValue, Token, Type};
 
 const SUBENUM: &str = "subenum";
 const ERR: &str =
@@ -49,7 +47,7 @@ fn sanitize_input(input: &mut DeriveInput) {
         // TODO: Switch to Vec::drain_filter once stabilized.
         let mut i = 0;
         while i < variant.attrs.len() {
-            if variant.attrs[i].path.is_ident(SUBENUM) {
+            if variant.attrs[i].path().is_ident(SUBENUM) {
                 variant.attrs.remove(i);
             } else {
                 i += 1;
@@ -58,41 +56,28 @@ fn sanitize_input(input: &mut DeriveInput) {
     }
 }
 
-fn attribute_paths(attr: &Attribute) -> impl Iterator<Item = Meta> {
-    let meta = attr.parse_meta().unwrap();
-    let nested = match meta {
-        Meta::List(list) => list.nested,
-        _ => unimplemented!("b"),
-    };
-    nested.into_iter().map(|nested| match nested {
-        NestedMeta::Meta(meta) => meta,
-        _ => unimplemented!("c"),
-    })
-}
-
-fn build_enum_map(args: AttributeArgs, derives: &[Derive]) -> BTreeMap<Ident, Enum> {
+fn build_enum_map(
+    args: Punctuated<Meta, syn::Token![,]>,
+    derives: &[Derive],
+) -> BTreeMap<Ident, Enum> {
     args.into_iter()
-        .map(|nested| match nested {
-            NestedMeta::Meta(meta) => meta,
-            NestedMeta::Lit(_) => panic!("{}", ERR),
-        })
         .map(|meta| match meta {
             Meta::Path(path) => (path.get_ident().expect(ERR).to_owned(), Vec::new()),
-            Meta::List(MetaList { path, nested, .. }) => (
-                path.get_ident().expect(ERR).to_owned(),
-                nested
+            Meta::List(ml) => (
+                ml.path.get_ident().expect(ERR).to_owned(),
+                ml.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                    .expect(ERR)
                     .into_iter()
-                    .map(|nested| match nested {
-                        NestedMeta::Meta(meta) => meta,
-                        NestedMeta::Lit(_) => panic!("{}", ERR),
-                    })
                     .map(|meta| match meta {
                         Meta::Path(path) => quote! { #path },
-                        Meta::List(MetaList { path, nested, .. }) => quote! { #path(#nested) },
-                        Meta::NameValue(MetaNameValue { path, lit, .. }) => quote! { #path = #lit },
+                        Meta::List(MetaList { path, tokens, .. }) => quote! { #path(#tokens) },
+                        Meta::NameValue(MetaNameValue { path, value, .. }) => {
+                            quote! { #path = #value }
+                        }
                     })
-                    .collect::<Vec<proc_macro2::TokenStream>>(),
+                    .collect(),
             ),
+
             _ => panic!("{}", ERR),
         })
         .map(|(ident, attrs)| {
@@ -106,7 +91,7 @@ fn build_enum_map(args: AttributeArgs, derives: &[Derive]) -> BTreeMap<Ident, En
 
 #[proc_macro_attribute]
 pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as AttributeArgs);
+    let args = parse_macro_input!(args with Punctuated::<Meta, syn::Token![,]>::parse_terminated);
     let mut input = parse_macro_input!(tokens as DeriveInput);
     let data = match input.data {
         syn::Data::Enum(ref data) => data,
@@ -115,8 +100,11 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
 
     let mut derives = Vec::new();
     for attr in &input.attrs {
-        if attr.path.is_ident("derive") {
-            for meta in attribute_paths(attr) {
+        if attr.path().is_ident("derive") {
+            for meta in attr
+                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .expect("b")
+            {
                 match meta {
                     Meta::Path(path) => {
                         if path.is_ident("PartialEq") {
@@ -133,32 +121,30 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
     for variant in &data.variants {
         for attribute in &variant.attrs {
             // Check for "subenum", iterate through the idents.
-            if attribute.path.is_ident(SUBENUM) {
-                for meta in attribute_paths(attribute) {
+            if attribute.path().is_ident(SUBENUM) {
+                for meta in attribute
+                    .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                    .expect("b")
+                {
                     let mut var = variant.clone();
 
                     let (ident, attrs) = match meta {
-                        Meta::Path(ref path) => (path.get_ident().unwrap(), Vec::new()),
-                        Meta::List(MetaList {
-                            ref path, nested, ..
-                        }) => (
-                            path.get_ident().unwrap(),
-                            nested
+                        Meta::Path(ref path) => (path.get_ident().unwrap().to_owned(), Vec::new()),
+                        Meta::List(ml) => (
+                            ml.path.get_ident().unwrap().to_owned(),
+                            ml.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                                .expect(ERR)
                                 .into_iter()
-                                .map(|nested| match nested {
-                                    NestedMeta::Meta(meta) => meta,
-                                    NestedMeta::Lit(_) => panic!("{}", ERR),
-                                })
                                 .map(|meta| match meta {
                                     Meta::Path(path) => quote! { #[ #path ] },
-                                    Meta::List(MetaList { path, nested, .. }) => {
-                                        quote! { #[ #path(#nested) ] }
+                                    Meta::List(MetaList { path, tokens, .. }) => {
+                                        quote! { #[ #path(#tokens) ] }
                                     }
-                                    Meta::NameValue(MetaNameValue { path, lit, .. }) => {
-                                        quote! { #[ #path = #lit ] }
+                                    Meta::NameValue(MetaNameValue { path, value, .. }) => {
+                                        quote! { #[ #path = #value ] }
                                     }
                                 })
-                                .collect::<Vec<proc_macro2::TokenStream>>(),
+                                .collect(),
                         ),
                         _ => unimplemented!("e"),
                     };
@@ -167,7 +153,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
                     var.attrs.retain(|attr| attribute != attr);
 
                     let e = enums
-                        .get_mut(ident)
+                        .get_mut(&ident)
                         .expect("All enums to be created must be declared at the top-level subenum attribute");
                     e.variants.push(var);
                     e.variants_attributes.push(attrs);
