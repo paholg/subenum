@@ -4,6 +4,10 @@ This project follows semantic versioning.
 
 ### Unreleased
 
+### 1.1.3 (2025-10-01)
+- [changed] Bumped dependency versions
+- [fixed] Improved lifetime handling
+
 ### 1.1.2 (2024-03-12)
 - [fixed] Fix error when there's an enum variant called `Error`.
 

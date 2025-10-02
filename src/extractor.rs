@@ -40,24 +40,22 @@ impl Extractor for Type {
                 .segments
                 .iter()
                 .flat_map(|x| match x.arguments {
-                    syn::PathArguments::AngleBracketed(ref ab) => {
-                        ab.args.iter().flat_map(|arg| match arg {
+                    syn::PathArguments::AngleBracketed(ref ab) => ab
+                        .args
+                        .iter()
+                        .flat_map(|arg| match arg {
                             syn::GenericArgument::Lifetime(lt) => Vec::from([lt.clone()]),
-                            syn::GenericArgument::Type(ty) => ty
-                                .extract_lifetimes(),
-                            syn::GenericArgument::Binding(b) => b
-                                .ty
-                                .extract_lifetimes(),
-                            _=> Vec::new(),
+                            syn::GenericArgument::Type(ty) => ty.extract_lifetimes(),
+                            syn::GenericArgument::AssocType(at) => at.ty.extract_lifetimes(),
+                            _ => Vec::new(),
                         })
-                        .collect()
-                    }
+                        .collect(),
                     syn::PathArguments::Parenthesized(ref p) => p
                         .inputs
                         .iter()
                         .flat_map(|x| x.extract_lifetimes())
                         .collect(),
-                    syn::PathArguments::None => Vec::new()
+                    syn::PathArguments::None => Vec::new(),
                 })
                 .collect(),
             Type::Ptr(p) => p.elem.extract_lifetimes(),
