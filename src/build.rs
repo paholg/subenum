@@ -18,29 +18,120 @@ fn add_bound(generics: &mut Generics, bound: TypeParamBound) {
     }
 }
 
-// Map a variant from an enum definition to how it would be used in a match
-// E.g.
-// * Foo -> Foo
-// * Foo(Bar, Baz) -> Foo(var1, var2)
-// * Foo { x: i32, y: i32 } -> Foo { x, y }
-fn variant_to_unary_pat(variant: &Variant) -> TokenStream2 {
+/// Generates the pattern and the corresponding expression with `.into()` calls.
+/// Returns (pattern: TokenStream2, expression: TokenStream2)
+fn variant_to_pat_and_into_expr(variant: &Variant) -> (TokenStream2, TokenStream2) {
     let ident = &variant.ident;
 
     match &variant.fields {
+        // --- 1. Named Fields (e.g., Variant { a, b }) ---
         syn::Fields::Named(named) => {
-            let vars: Punctuated<Ident, Token![,]> = named.named.iter().map(snake_case).collect();
-            quote!(#ident{#vars})
+            // Pattern: Variant { var1, var2 }
+            let vars: Punctuated<Ident, Token![,]> = named
+                .named
+                .iter()
+                .flat_map(|it| it.ident.as_ref())
+                .cloned()
+                .collect();
+            let pattern = quote!(#ident { #vars });
+
+            let vars = vars.iter();
+            // Expression: Variant { var1: var1.into(), var2: var2.into() }
+            let expression = quote! {
+                #ident {
+                    #(#vars: #vars.into()),*
+                }
+            };
+            (pattern, expression)
         }
+
+        // --- 2. Unnamed Fields (e.g., Variant(var1, var2)) ---
         syn::Fields::Unnamed(unnamed) => {
+            // Create identifiers for the variables (var0, var1, ...)
             let vars: Punctuated<Ident, Token![,]> = unnamed
                 .unnamed
                 .iter()
                 .enumerate()
                 .map(|(idx, _)| format_ident!("var{idx}"))
                 .collect();
-            quote!(#ident(#vars))
+
+            // Pattern: Variant(var0, var1, ...)
+            let pattern = quote!(#ident(#vars));
+
+            let vars = vars.iter();
+            // Expression: Variant(var0.into(), var1.into(), ...)
+            let expression = quote! {
+                #ident(#(#vars.into()),*)
+            };
+            (pattern, expression)
         }
-        syn::Fields::Unit => quote!(#ident),
+
+        // --- 3. Unit Field (e.g., Variant) ---
+        syn::Fields::Unit => {
+            let pattern = quote!(#ident);
+            let expression = quote!(#ident);
+            (pattern, expression)
+        }
+    }
+}
+
+fn variant_to_pat_and_try_into_expr(
+    variant: &Variant,
+    error_type: &Ident,
+) -> (TokenStream2, TokenStream2) {
+    let ident = &variant.ident;
+    let error_ident = error_type;
+
+    match &variant.fields {
+        // --- 1. Named Fields ---
+        syn::Fields::Named(named) => {
+            // Pattern: ParentEnum::Variant { var1, var2 }
+            let vars: Punctuated<Ident, Token![,]> = named.named.iter().map(snake_case).collect();
+            let pattern = quote!(#ident { #vars });
+
+            // Expression: ParentEnum::Variant { var1: var1.try_into().map_err(|_| E)? }
+            let conversion_exprs = vars
+                .iter()
+                .map(|v| quote!(#v: #v.try_into().map_err(|_| #error_ident)?));
+
+            let expression = quote! {
+                #ident {
+                    #(#conversion_exprs),*
+                }
+            };
+            (pattern, expression)
+        }
+
+        // --- 2. Unnamed Fields ---
+        syn::Fields::Unnamed(unnamed) => {
+            // Create identifiers for the variables (var0, var1, ...)
+            let vars: Punctuated<Ident, Token![,]> = unnamed
+                .unnamed
+                .iter()
+                .enumerate()
+                .map(|(idx, _)| format_ident!("var{idx}"))
+                .collect();
+
+            // Pattern: ParentEnum::Variant(var0, var1, ...)
+            let pattern = quote!(#ident(#vars));
+
+            // Expression: ParentEnum::Variant(var0.try_into().map_err(|_| E)?, ...)
+            let conversion_exprs = vars
+                .iter()
+                .map(|v| quote!(#v.try_into().map_err(|_| #error_ident)?));
+
+            let expression = quote! {
+                #ident(#(#conversion_exprs),*)
+            };
+            (pattern, expression)
+        }
+
+        // --- 3. Unit Field ---
+        syn::Fields::Unit => {
+            let pattern = quote!(#ident);
+            let expression = quote!(#ident);
+            (pattern, expression)
+        }
     }
 }
 
@@ -121,15 +212,16 @@ impl Enum {
             impl core::error::Error for #error {}
         );
 
-        let pats: Vec<TokenStream2> = self.variants.iter().map(variant_to_unary_pat).collect();
-
-        let from_child_arms = pats
+        let into_pats = self.variants.iter().map(variant_to_pat_and_into_expr);
+        let try_into_pats = self
+            .variants
             .iter()
-            .map(|pat| quote!(#child_ident::#pat => #parent_ident::#pat));
+            .map(|it| variant_to_pat_and_try_into_expr(it, &error));
 
-        let try_from_parent_arms = pats
-            .iter()
-            .map(|pat| quote!(#parent_ident::#pat => Ok(#child_ident::#pat)));
+        let from_child_arms = into_pats.map(|(a, b)| quote!(#child_ident::#a => #parent_ident::#b));
+
+        let try_from_parent_arms =
+            try_into_pats.map(|(a, b)| quote!(#parent_ident::#a => Ok(#child_ident::#b)));
 
         let inherited_derives = self
             .derives

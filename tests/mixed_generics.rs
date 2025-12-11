@@ -8,15 +8,15 @@ where
 {
     // Uses only lifetime
     #[subenum(JustRef)]
-    RefHolder(&'a str),
+    Ref(&'a str),
 
     // Uses only const
     #[subenum(JustConst)]
-    ArrayHolder([u8; N]),
+    Array([u8; N]),
 
     // Uses only Type
     #[subenum(JustType)]
-    ValueHolder(T),
+    Value(T),
 }
 
 #[test]
@@ -28,23 +28,23 @@ fn test_mixed_generics_isolation() {
     // It should NOT require T or N.
     // If your macro incorrectly requires T, this might fail to compile
     // if T doesn't satisfy bounds, or simply via signature mismatch.
-    let r: JustRef<'_> = JustRef::RefHolder("hello");
+    let r: JustRef<'_> = JustRef::Ref("hello");
     match r {
-        JustRef::RefHolder(s) => assert_eq!(s, "hello"),
+        JustRef::Ref(s) => assert_eq!(s, "hello"),
     }
 
     // 2. JustConst: Should be JustConst<const N: usize>
     // Should NOT require 'a or T.
-    let c: JustConst<SIZE> = JustConst::ArrayHolder([0; SIZE]);
+    let c: JustConst<SIZE> = JustConst::Array([0; SIZE]);
     match c {
-        JustConst::ArrayHolder(arr) => assert_eq!(arr.len(), 16),
+        JustConst::Array(arr) => assert_eq!(arr.len(), 16),
     }
 
     // 3. JustType: Should be JustType<T>
     // Crucial: It MUST preserve the bounds `where T: Copy + Add...`
     // but MUST Drop the generic parameters 'a and N.
-    let v: JustType<i32> = JustType::ValueHolder(val);
+    let v: JustType<i32> = JustType::Value(val);
     match v {
-        JustType::ValueHolder(x) => assert_eq!(x, 100),
+        JustType::Value(x) => assert_eq!(x, 100),
     }
 }
