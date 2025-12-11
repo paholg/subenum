@@ -138,7 +138,7 @@ impl Enum {
 
         let vis = &parent.vis;
 
-        let (_child_impl, child_ty, _child_where) = child_generics.split_for_impl();
+        let (_child_impl, child_ty, child_where) = child_generics.split_for_impl();
 
         let (parent_impl, parent_ty, parent_where) = parent.generics.split_for_impl();
 
@@ -149,7 +149,7 @@ impl Enum {
         quote!(
             #(#[ #attributes ])*
             #(#child_attrs)*
-            #vis enum #child_ident #child_generics {
+            #vis enum #child_ident #child_generics #child_where {
                 #(#variants),*
             }
 
