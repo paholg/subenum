@@ -6,12 +6,11 @@ extern crate alloc;
 mod build;
 mod derive;
 mod r#enum;
-mod extractor;
-mod iter;
 mod param;
+mod predicate;
+mod visitor;
 
 use alloc::{borrow::ToOwned, collections::BTreeMap, string::ToString, vec::Vec};
-
 use derive::Derive;
 use heck::ToSnakeCase;
 use proc_macro::TokenStream;
@@ -19,11 +18,14 @@ use proc_macro2::Ident;
 use quote::quote;
 use r#enum::Enum;
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, DeriveInput, Field, Meta, MetaList, MetaNameValue, Token, Type};
+use syn::{
+    parse_macro_input, DeriveInput, Field, Fields, Meta, MetaList, MetaNameValue, Token, Type,
+};
 
 const SUBENUM: &str = "subenum";
+const WITH: &str = "with";
 const ERR: &str =
-    "subenum must be called with a list of identifiers, like `#[subenum(EnumA, EnumB(derive(Clone)))]`";
+    "subenum must be called with a list of identifiers, like `#[subenum(EnumA, EnumB(derive(Clone)), EnumC(with(OtherType)))]`";
 
 fn snake_case(field: &Field) -> Ident {
     let ident = field.ident.as_ref().unwrap_or_else(|| {
@@ -44,15 +46,7 @@ fn sanitize_input(input: &mut DeriveInput) {
     };
 
     for variant in data.variants.iter_mut() {
-        // TODO: Switch to Vec::drain_filter once stabilized.
-        let mut i = 0;
-        while i < variant.attrs.len() {
-            if variant.attrs[i].path().is_ident(SUBENUM) {
-                variant.attrs.remove(i);
-            } else {
-                i += 1;
-            }
-        }
+        variant.attrs.retain(|it| !it.path().is_ident(SUBENUM));
     }
 }
 
@@ -135,13 +129,28 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
                             ml.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                                 .expect(ERR)
                                 .into_iter()
-                                .map(|meta| match meta {
-                                    Meta::Path(path) => quote! { #[ #path ] },
-                                    Meta::List(MetaList { path, tokens, .. }) => {
-                                        quote! { #[ #path(#tokens) ] }
+                                .flat_map(|meta| match meta {
+                                    Meta::Path(path) => Some(quote! { #[ #path ] }),
+                                    Meta::List(metalist) => {
+                                        if metalist.path.is_ident(WITH) {
+                                            let replacement_types = metalist.parse_args_with(Punctuated::<syn::Type, Token![,]>::parse_terminated).ok()?;
+                                            let mut replacements_iter = replacement_types.into_iter();
+                                            let fields = match &mut var.fields {
+                                                Fields::Named(named) => &mut named.named,
+                                                Fields::Unnamed(unnamed) => &mut unnamed.unnamed,
+                                                Fields::Unit => return None,
+                                            };
+                                            for field in fields {
+                                                field.ty = replacements_iter.next()?;
+                                            }
+                                            None
+                                        } else {
+                                            let MetaList { path, tokens, .. } = metalist;
+                                            Some(quote! { #[ #path(#tokens) ] })
+                                        }
                                     }
                                     Meta::NameValue(MetaNameValue { path, value, .. }) => {
-                                        quote! { #[ #path = #value ] }
+                                        Some(quote! { #[ #path = #value ] })
                                     }
                                 })
                                 .collect(),
