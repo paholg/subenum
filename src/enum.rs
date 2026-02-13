@@ -1,11 +1,10 @@
-use alloc::{
-    collections::{BTreeMap, BTreeSet},
-    vec::Vec,
-};
+use crate::predicate::analyze_generics;
+use crate::visitor::ParamVisitor;
+use crate::{param::Param, Derive};
+use alloc::{collections::BTreeSet, vec::Vec};
 use proc_macro2::TokenStream;
-use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Variant};
-
-use crate::{extractor::Extractor, iter::BoxedIter, param::Param, Derive};
+use syn::visit::Visit;
+use syn::{punctuated::Punctuated, Generics, Ident, Token, Variant, WherePredicate};
 
 pub struct Enum {
     pub ident: Ident,
@@ -34,99 +33,84 @@ impl Enum {
     }
 
     pub fn compute_generics(&mut self, parent_generics: &Generics) {
-        let generic_bounds: BTreeMap<Param, Vec<TypeParamBound>> = parent_generics
-            .type_params()
-            .map(|param| {
-                (
-                    Param::Ident(param.ident.clone()),
-                    param.bounds.iter().cloned().collect(),
-                )
-            })
-            .chain(parent_generics.lifetimes().map(|lifetime_def| {
-                (
-                    Param::Lifetime(lifetime_def.lifetime.clone()),
-                    lifetime_def
-                        .bounds
-                        .iter()
-                        .cloned()
-                        .map(TypeParamBound::Lifetime)
-                        .collect(),
-                )
-            }))
-            .chain(
-                parent_generics
-                    .where_clause
-                    .iter()
-                    .flat_map(|clause| &clause.predicates)
-                    .flat_map(|pred| match pred {
-                        syn::WherePredicate::Type(ty) => {
-                            // We have to be a bit careful here. Imagine the bound
-                            // <T as Add<U>>:: Foo
-                            // We need to treat this as a bound on both `T` and on `U`.
-                            let bounds: Vec<TypeParamBound> = ty.bounds.iter().cloned().collect();
-                            ty.bounded_ty
-                                .extract_idents()
-                                .into_iter()
-                                .map(move |ident| (Param::Ident(ident), bounds.clone()))
-                                .boxed()
+        // 1. Analyze constraints: Convert all inline bounds and where clauses
+        //    into a list of PredicateDependency
+        let mut deps = analyze_generics(parent_generics);
+
+        // 2. Identify "Root" params: The generics explicitly used in the variants.
+        let mut visitor = ParamVisitor::new(parent_generics);
+        for variant in &self.variants {
+            visitor.visit_variant(variant);
+        }
+
+        let mut active_params: BTreeSet<Param> = visitor.found;
+        let mut active_predicates: Vec<WherePredicate> = Vec::new();
+
+        // 3. Repeatedly iterate through dependencies. If a predicate mentions
+        //    ANY active param, we must keep that predicate AND activate
+        //    any other params it mentions.
+        let mut changed = true;
+        while changed {
+            changed = false;
+
+            // We retain only the predicates we haven't matched yet.
+            deps.retain(|dep| {
+                // Check if this dependency touches any currently active param
+                let is_relevant = dep.used_params.iter().any(|p| active_params.contains(p));
+
+                if is_relevant {
+                    // It is relevant: Keep the predicate
+                    active_predicates.push(dep.predicate.clone());
+
+                    // Activate all params used by this predicate
+                    for p in &dep.used_params {
+                        if active_params.insert(p.clone()) {
+                            // If we added a NEW param, we must loop again
+                            // to check for bounds dependent on this new param.
+                            changed = true;
                         }
-                        syn::WherePredicate::Lifetime(lt) => [(
-                            Param::Lifetime(lt.lifetime.clone()),
-                            lt.bounds
-                                .iter()
-                                .cloned()
-                                .map(TypeParamBound::Lifetime)
-                                .collect(),
-                        )]
-                        .into_iter()
-                        .boxed(),
-                        _ => panic!("Unsupported where predicate"),
-                    }),
-            )
-            .collect();
-
-        // panic!("{generic_bounds:#?}");
-
-        let types = self
-            .variants
-            .iter()
-            .flat_map(|variant| match &variant.fields {
-                syn::Fields::Named(named) => named.named.iter().map(|field| &field.ty).collect(),
-                syn::Fields::Unnamed(unnamed) => {
-                    unnamed.unnamed.iter().map(|field| &field.ty).collect()
+                    }
+                    // Remove from `deps` so we don't process it again
+                    return false;
                 }
-                syn::Fields::Unit => Vec::new(),
+                true // Keep in `deps` for next pass
             });
-        // Extract all of the lifetimes and idents we care about from the types.
-        let params = types.into_iter().flat_map(|ty| ty.extract_params());
-
-        // The same generic may appear in multiple bounds, so we use a BTreeSet to dedup.
-        let relevant_params: BTreeSet<Param> = params
-            .flat_map(|param| param.find_relevant(&generic_bounds))
-            .collect();
-
-        self.generics = generics_subset(parent_generics, relevant_params.into_iter());
-    }
-}
-
-/// Given a set of `Generics`, return the subset that we're interested in.
-/// Expects `params` already includes all possible types/lifetimes we care
-// about.
-/// E.g. with generics `T: U, U, V`, this function should never be called with
-/// just params of `T`; it would instead expect `T, U`.
-/// In short: call `find_all_generics` first.
-fn generics_subset(generics: &Generics, params: impl Iterator<Item = Param>) -> Generics {
-    let mut new = Generics::default();
-
-    for param in params {
-        let (generic_param, predicate) = param.find(generics);
-        if let Some(gp) = generic_param {
-            new.params.push(gp.clone());
         }
-        if let Some(pred) = predicate {
-            new.make_where_clause().predicates.push(pred.clone());
+        // 4. Construct the final Generics struct in-place
+        self.generics = Generics::default();
+
+        // A. Filter params and strip inline bounds
+        for param in &parent_generics.params {
+            let keep = match param {
+                syn::GenericParam::Type(t) => {
+                    active_params.contains(&Param::Ident(t.ident.clone()))
+                }
+                syn::GenericParam::Lifetime(l) => {
+                    active_params.contains(&Param::Lifetime(l.lifetime.clone()))
+                }
+                syn::GenericParam::Const(c) => {
+                    active_params.contains(&Param::Ident(c.ident.clone()))
+                }
+            };
+
+            if keep {
+                let mut p = param.clone();
+                // CRITICAL: We clear inline bounds here because `analyze_generics`
+                // has already converted them into predicates. If we don't clear them,
+                // we will have duplicates (once in <> and once in where clause).
+                match &mut p {
+                    syn::GenericParam::Type(t) => t.bounds.clear(),
+                    syn::GenericParam::Lifetime(l) => l.bounds.clear(),
+                    _ => {}
+                }
+                self.generics.params.push(p);
+            }
+        }
+
+        // B. Append the collected predicates to the where clause
+        if !active_predicates.is_empty() {
+            let where_clause = self.generics.make_where_clause();
+            where_clause.predicates.extend(active_predicates);
         }
     }
-
-    new
 }
