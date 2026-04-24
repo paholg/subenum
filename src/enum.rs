@@ -2,22 +2,21 @@ use alloc::{
     collections::{BTreeMap, BTreeSet},
     vec::Vec,
 };
-use proc_macro2::TokenStream;
-use syn::{punctuated::Punctuated, Generics, Ident, Token, TypeParamBound, Variant};
+use syn::{punctuated::Punctuated, Attribute, Generics, Ident, Token, TypeParamBound, Variant};
 
 use crate::{extractor::Extractor, iter::BoxedIter, param::Param, Derive};
 
 pub struct Enum {
     pub ident: Ident,
     pub variants: Punctuated<Variant, Token![,]>,
-    pub variants_attributes: Vec<Vec<TokenStream>>,
-    pub attributes: Vec<TokenStream>,
+    pub variants_attributes: Vec<Vec<Attribute>>,
+    pub attributes: Vec<Attribute>,
     pub derives: Vec<Derive>,
     pub generics: Generics,
 }
 
 impl Enum {
-    pub fn new(ident: Ident, attributes: Vec<TokenStream>, derives: Vec<Derive>) -> Self {
+    pub fn new(ident: Ident, attributes: Vec<Attribute>, derives: Vec<Derive>) -> Self {
         Enum {
             ident,
             variants: Punctuated::new(),

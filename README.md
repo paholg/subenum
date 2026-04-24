@@ -134,6 +134,51 @@ fn main() {
 }
 ```
 
+## Parent-specific proc-macros
+
+You can also specify attributes to be added to the parent enums only (i.e., the enum being `subenum`ed) via its same identifier (or the `Self` identifier), which can be used for things like documentation:
+
+```rust
+use subenum::subenum;
+
+/// Generic value type
+#[subenum(
+    Self(doc = "Numeric type\n"), // equals to `Num(doc = "Numeric type\n")`
+    Float(doc = "Floating point type\n"),
+    Int(doc = "Integer type\n")
+)]
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Num {
+    /// 64-bit floating point type (Generic)
+    #[subenum(
+        Self(doc = "64-bit floating point type (Num)\n"),
+        Float(doc = "64-bit floating point type (Float)\n")
+    )]
+    F64(f64),
+
+    /// 32-bit floating point type (Generic)
+    #[subenum(
+        Num(doc = "32-bit floating point type (Num)\n"),
+        Float(doc = "32-bit floating point type (Float)\n")
+    )]
+    F32(f32),
+
+    /// 64-bit integer type (Generic)
+    #[subenum(
+        Num(doc = "64-bit integer type (Num)\n"),
+        Int(doc = "64-bit integer type (Int)\n")
+    )]
+    I64(i64),
+
+    /// 32-bit integer type (Generic)
+    #[subenum(
+        Self(doc = "32-bit integer type (Num)\n"),
+        Int(doc = "32-bit integer type (Int)\n")
+    )]
+    I32(i32),
+}
+```
+
 
 # Limitations
 

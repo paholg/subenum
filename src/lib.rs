@@ -19,7 +19,7 @@ use proc_macro2::Ident;
 use quote::quote;
 use r#enum::Enum;
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, DeriveInput, Field, Meta, MetaList, MetaNameValue, Token, Type};
+use syn::{parse_macro_input, DeriveInput, Field, Meta, Token, Type};
 
 const SUBENUM: &str = "subenum";
 const ERR: &str =
@@ -68,13 +68,7 @@ fn build_enum_map(
                 ml.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                     .expect(ERR)
                     .into_iter()
-                    .map(|meta| match meta {
-                        Meta::Path(path) => quote! { #path },
-                        Meta::List(MetaList { path, tokens, .. }) => quote! { #path(#tokens) },
-                        Meta::NameValue(MetaNameValue { path, value, .. }) => {
-                            quote! { #path = #value }
-                        }
-                    })
+                    .map(|meta| syn::parse_quote!(#[#meta]))
                     .collect(),
             ),
 
@@ -94,7 +88,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args with Punctuated::<Meta, syn::Token![,]>::parse_terminated);
     let mut input = parse_macro_input!(tokens as DeriveInput);
     let data = match input.data {
-        syn::Data::Enum(ref data) => data,
+        syn::Data::Enum(ref mut data) => data,
         _ => panic!("subenum may only be used on enums."),
     };
 
@@ -118,7 +112,8 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
     }
     let mut enums = build_enum_map(args, &derives);
 
-    for variant in &data.variants {
+    let mut self_variant_attrs = alloc::vec![Vec::new(); data.variants.len()];
+    for (variant, self_attrs) in data.variants.iter().zip(&mut self_variant_attrs) {
         for attribute in &variant.attrs {
             // Check for "subenum", iterate through the idents.
             if attribute.path().is_ident(SUBENUM) {
@@ -135,15 +130,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
                             ml.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                                 .expect(ERR)
                                 .into_iter()
-                                .map(|meta| match meta {
-                                    Meta::Path(path) => quote! { #[ #path ] },
-                                    Meta::List(MetaList { path, tokens, .. }) => {
-                                        quote! { #[ #path(#tokens) ] }
-                                    }
-                                    Meta::NameValue(MetaNameValue { path, value, .. }) => {
-                                        quote! { #[ #path = #value ] }
-                                    }
-                                })
+                                .map(|meta| syn::parse_quote!(#[#meta]))
                                 .collect(),
                         ),
                         _ => unimplemented!("e"),
@@ -151,6 +138,11 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
 
                     // We want all attributes except the "subenum" one.
                     var.attrs.retain(|attr| attribute != attr);
+
+                    if ident == "Self" || ident == input.ident {
+                        self_attrs.extend(attrs);
+                        continue;
+                    }
 
                     let e = enums
                         .get_mut(&ident)
@@ -161,12 +153,19 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
             }
         }
     }
+    for (variants, self_attrs) in data.variants.iter_mut().zip(self_variant_attrs) {
+        variants.attrs.extend(self_attrs);
+    }
 
     for e in enums.values_mut() {
         e.compute_generics(&input.generics);
     }
 
-    let enums: Vec<_> = enums.into_values().map(|e| e.build(&input)).collect();
+    let attrs = input.attrs.clone();
+    let enums: Vec<_> = enums
+        .into_values()
+        .map(|e| e.build(&mut input, &attrs))
+        .collect();
 
     sanitize_input(&mut input);
 
