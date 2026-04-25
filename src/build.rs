@@ -97,7 +97,7 @@ impl Enum {
     }
 
     pub fn build(&self, parent: &mut DeriveInput, child_attrs: &[Attribute]) -> TokenStream2 {
-        if self.ident == "Self" || self.ident == parent.ident {
+        if self.ident == parent.ident {
             parent.attrs.extend(self.attributes.clone());
             return Default::default();
         }

@@ -1,7 +1,7 @@
 use subenum::subenum;
 
 #[subenum(
-    Self(
+    Storage(
         doc = "[WebAssembly storage types](\
             https://webassembly.github.io/spec/core/syntax/types.html#syntax-storagetype)\n",
         derive(strum::EnumDiscriminants),
@@ -48,19 +48,19 @@ pub enum Storage<R = usize> {
     I16(i16) = 0x77,
 
     #[subenum(
-        Self(doc = "8-bit integer type (Storage)\n"),
+        Storage(doc = "8-bit integer type (Storage)\n"),
         Pack(doc = "8-bit integer type (Pack)\n")
     )]
     I8(i8) = 0x78,
 
     #[subenum(
-        Self(doc = "128-bit vector type (Storage)\n"),
+        Storage(doc = "128-bit vector type (Storage)\n"),
         Val(doc = "128-bit vector type (Val)\n")
     )]
     V128([u8; 16]) = 0x7B,
 
     #[subenum(
-        Self(doc = "64-bit float type (Storage)\n"),
+        Storage(doc = "64-bit float type (Storage)\n"),
         Val(doc = "64-bit float type (Val)\n"),
         Num(doc = "64-bit float type (Num)\n"),
         Float(doc = "64-bit float type (Float)\n")
@@ -76,7 +76,7 @@ pub enum Storage<R = usize> {
     F32(f32) = 0x7D,
 
     #[subenum(
-        Self(doc = "64-bit integer type (Storage)\n"),
+        Storage(doc = "64-bit integer type (Storage)\n"),
         Val(doc = "64-bit integer type (Val)\n"),
         Num(doc = "64-bit integer type (Num)\n"),
         Int(doc = "64-bit integer type (Int)\n")
@@ -92,7 +92,7 @@ pub enum Storage<R = usize> {
     I32(i32) = 0x7F,
 
     #[subenum(
-        Self(doc = "Reference type (Storage)\n"),
+        Storage(doc = "Reference type (Storage)\n"),
         Val(doc = "Reference type (Val)\n")
     )]
     Ref(R),

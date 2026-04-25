@@ -139,7 +139,7 @@ pub fn subenum(args: TokenStream, tokens: TokenStream) -> TokenStream {
                     // We want all attributes except the "subenum" one.
                     var.attrs.retain(|attr| attribute != attr);
 
-                    if ident == "Self" || ident == input.ident {
+                    if ident == input.ident {
                         self_attrs.extend(attrs);
                         continue;
                     }

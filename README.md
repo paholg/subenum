@@ -136,14 +136,14 @@ fn main() {
 
 ## Parent-specific proc-macros
 
-You can also specify attributes to be added to the parent enums only (i.e., the enum being `subenum`ed) via its same identifier (or the `Self` identifier), which can be used for things like documentation:
+You can also specify attributes to be added to the parent enums only (i.e., the enum being `subenum`ed) via its same identifier, which can be used for things like documentation:
 
 ```rust
 use subenum::subenum;
 
 /// Generic value type
 #[subenum(
-    Self(doc = "Numeric type\n"), // equals to `Num(doc = "Numeric type\n")`
+    Num(doc = "Numeric type\n"), // This will be added to Num itself, but not to Float or Int.
     Float(doc = "Floating point type\n"),
     Int(doc = "Integer type\n")
 )]
@@ -151,7 +151,7 @@ use subenum::subenum;
 pub enum Num {
     /// 64-bit floating point type (Generic)
     #[subenum(
-        Self(doc = "64-bit floating point type (Num)\n"),
+        Num(doc = "64-bit floating point type (Num)\n"),
         Float(doc = "64-bit floating point type (Float)\n")
     )]
     F64(f64),
@@ -172,7 +172,7 @@ pub enum Num {
 
     /// 32-bit integer type (Generic)
     #[subenum(
-        Self(doc = "32-bit integer type (Num)\n"),
+        Num(doc = "32-bit integer type (Num)\n"),
         Int(doc = "32-bit integer type (Int)\n")
     )]
     I32(i32),
