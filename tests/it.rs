@@ -29,6 +29,8 @@ enum Pippy<'a, T> {
     E(String),
     #[subenum(Neither, Both)]
     F { a: u32 },
+    #[subenum(Str)]
+    G { recursive: &'a Pippy<'a, T> },
 }
 
 #[subenum(Flip, Flop)]

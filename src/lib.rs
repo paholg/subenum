@@ -6,9 +6,9 @@ extern crate alloc;
 mod build;
 mod derive;
 mod r#enum;
-mod extractor;
-mod iter;
 mod param;
+mod predicate;
+mod visitor;
 
 use alloc::{borrow::ToOwned, collections::BTreeMap, string::ToString, vec::Vec};
 
