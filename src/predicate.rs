@@ -23,29 +23,25 @@ pub fn analyze_generics(generics: &Generics) -> Vec<PredicateDependency> {
     // A. Convert Inline Bounds (<T: Debug>) to WherePredicates
     for param in &generics.params {
         match param {
-            syn::GenericParam::Type(t) => {
-                if !t.bounds.is_empty() {
-                    let pred = WherePredicate::Type(PredicateType {
-                        lifetimes: None,
-                        bounded_ty: Type::Path(syn::TypePath {
-                            qself: None,
-                            path: t.ident.clone().into(),
-                        }),
-                        colon_token: Default::default(),
-                        bounds: t.bounds.clone(),
-                    });
-                    predicates.push(pred);
-                }
+            syn::GenericParam::Type(t) if !t.bounds.is_empty() => {
+                let pred = WherePredicate::Type(PredicateType {
+                    lifetimes: None,
+                    bounded_ty: Type::Path(syn::TypePath {
+                        qself: None,
+                        path: t.ident.clone().into(),
+                    }),
+                    colon_token: Default::default(),
+                    bounds: t.bounds.clone(),
+                });
+                predicates.push(pred);
             }
-            syn::GenericParam::Lifetime(l) => {
-                if !l.bounds.is_empty() {
-                    let pred = WherePredicate::Lifetime(PredicateLifetime {
-                        lifetime: l.lifetime.clone(),
-                        colon_token: Default::default(),
-                        bounds: l.bounds.clone(),
-                    });
-                    predicates.push(pred);
-                }
+            syn::GenericParam::Lifetime(l) if !l.bounds.is_empty() => {
+                let pred = WherePredicate::Lifetime(PredicateLifetime {
+                    lifetime: l.lifetime.clone(),
+                    colon_token: Default::default(),
+                    bounds: l.bounds.clone(),
+                });
+                predicates.push(pred);
             }
             _ => {}
         }
