@@ -45,6 +45,9 @@ fn test_associated_type_usage() {
     match src_audio {
         InputOnly::Source(bytes) => assert_eq!(bytes.len(), 3),
     }
+    match src_video {
+        InputOnly::Source(bytes) => assert_eq!(bytes.len(), 2),
+    }
 
     // 2. OutputOnly
     // Similarly, checks P::Output usage
