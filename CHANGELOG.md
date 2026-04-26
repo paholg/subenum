@@ -3,6 +3,8 @@
 This project follows semantic versioning.
 
 ### Unreleased
+
+### 1.2.0 (2026-04-26)
 - [added] Support for parent-specific proc-macros.
 - [fixed] Support for const generics, associated lifetimes, nested generics.
 
