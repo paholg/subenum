@@ -38,11 +38,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         name: Checkout
+      - uses: extractions/setup-just@v2
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
         name: Install Rust Toolchain
-      - run: cargo test ${{ matrix.flags }}
+      - run: just test ${{ matrix.flags }}
       - run: cargo doc
 
   lint:
@@ -51,9 +52,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         name: Checkout
+      - uses: extractions/setup-just@v2
       - uses: dtolnay/rust-toolchain@stable
         name: Install Rust Toolchain
         with:
           components: rustfmt, clippy
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy -- -D warnings
+      - run: just check
