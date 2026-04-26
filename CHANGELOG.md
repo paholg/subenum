@@ -3,6 +3,7 @@
 This project follows semantic versioning.
 
 ### Unreleased
+- [added] Support for parent-specific proc-macros.
 
 ### 1.1.3 (2025-10-01)
 - [changed] Bumped dependency versions

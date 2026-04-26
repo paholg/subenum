@@ -2,21 +2,21 @@ use crate::predicate::analyze_generics;
 use crate::visitor::ParamVisitor;
 use crate::{param::Param, Derive};
 use alloc::{collections::BTreeSet, vec::Vec};
-use proc_macro2::TokenStream;
 use syn::visit::Visit;
+use syn::Attribute;
 use syn::{punctuated::Punctuated, Generics, Ident, Token, Variant, WherePredicate};
 
 pub struct Enum {
     pub ident: Ident,
     pub variants: Punctuated<Variant, Token![,]>,
-    pub variants_attributes: Vec<Vec<TokenStream>>,
-    pub attributes: Vec<TokenStream>,
+    pub variants_attributes: Vec<Vec<Attribute>>,
+    pub attributes: Vec<Attribute>,
     pub derives: Vec<Derive>,
     pub generics: Generics,
 }
 
 impl Enum {
-    pub fn new(ident: Ident, attributes: Vec<TokenStream>, derives: Vec<Derive>) -> Self {
+    pub fn new(ident: Ident, attributes: Vec<Attribute>, derives: Vec<Derive>) -> Self {
         Enum {
             ident,
             variants: Punctuated::new(),

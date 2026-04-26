@@ -1,7 +1,9 @@
 use alloc::{format, vec::Vec};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use syn::{punctuated::Punctuated, DeriveInput, Generics, Ident, Token, TypeParamBound, Variant};
+use syn::{
+    punctuated::Punctuated, Attribute, DeriveInput, Generics, Ident, Token, TypeParamBound, Variant,
+};
 
 use crate::{
     derive::{partial_eq::partial_eq_arm, Derive},
@@ -94,9 +96,13 @@ impl Enum {
         }
     }
 
-    pub fn build(&self, parent: &DeriveInput) -> TokenStream2 {
+    pub fn build(&self, parent: &mut DeriveInput, child_attrs: &[Attribute]) -> TokenStream2 {
+        if self.ident == parent.ident {
+            parent.attrs.extend(self.attributes.clone());
+            return Default::default();
+        }
+
         let attributes = self.attributes.clone();
-        let child_attrs = parent.attrs.clone();
         let variants = self
             .variants
             .iter()
@@ -147,7 +153,7 @@ impl Enum {
         );
 
         quote!(
-            #(#[ #attributes ])*
+            #(#attributes)*
             #(#child_attrs)*
             #vis enum #child_ident #child_generics #child_where {
                 #(#variants),*
@@ -180,7 +186,7 @@ impl Enum {
             impl #parent_impl core::convert::TryFrom<#parent_ident #parent_ty> for #child_ident #child_ty #parent_where {
                 type Error = #error;
 
-                fn try_from(parent: #parent_ident #parent_ty) -> std::result::Result<Self, <Self as core::convert::TryFrom<#parent_ident #parent_ty>>::Error> {
+                fn try_from(parent: #parent_ident #parent_ty) -> core::result::Result<Self, <Self as core::convert::TryFrom<#parent_ident #parent_ty>>::Error> {
                     match parent {
                         #(#try_from_parent_arms),*,
                         _ => Err(#error)
