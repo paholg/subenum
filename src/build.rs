@@ -127,15 +127,34 @@ impl Enum {
             impl core::error::Error for #error {}
         );
 
-        let pats: Vec<TokenStream2> = self.variants.iter().map(variant_to_unary_pat).collect();
-
-        let from_child_arms = pats
+        let cfg_and_pats: Vec<(Vec<Attribute>, TokenStream2)> = self
+            .variants
             .iter()
-            .map(|pat| quote!(#child_ident::#pat => #parent_ident::#pat));
+            .map(|variant| {
+                let pat = variant_to_unary_pat(variant);
+                let cfg_attrs = variant
+                    .attrs
+                    .iter()
+                    .filter(|a| a.path().is_ident("cfg"))
+                    .cloned()
+                    .collect();
+                (cfg_attrs, pat)
+            })
+            .collect();
 
-        let try_from_parent_arms = pats
-            .iter()
-            .map(|pat| quote!(#parent_ident::#pat => Ok(#child_ident::#pat)));
+        let from_child_arms = cfg_and_pats.iter().map(|(cfg_attrs, pat)| {
+            quote!(
+                #(#cfg_attrs)*
+                #child_ident::#pat => #parent_ident::#pat
+            )
+        });
+
+        let try_from_parent_arms = cfg_and_pats.iter().map(|(cfg_attrs, pat)| {
+            quote!(
+                #(#cfg_attrs)*
+                #parent_ident::#pat => Ok(#child_ident::#pat)
+            )
+        });
 
         let inherited_derives = self
             .derives
