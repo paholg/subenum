@@ -185,6 +185,8 @@ pub enum Num {
 Bound lifetimes (e.g. `for<'a, 'b, 'c>`) are not currently supported. Please
 open a ticket if these are desired.
 
+`subenum` does not handle `cfg` attributes. To handle conditional compilation, consider using the [`cfg_eval`](https://github.com/rust-lang/rust/issues/82679) unstable feature or the [`cfg_eval`](https://crates.io/crates/cfg_eval) crate to pre-process `cfg` attributes.
+
 # Features
 - `default` - `std` and `error_trait`
 - `std` - Use standard library collections and allocators within this proc macro
